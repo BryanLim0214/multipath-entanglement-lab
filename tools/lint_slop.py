@@ -21,6 +21,7 @@ TEXT_RULES = [
         r"unleash|elevate|empower|supercharge|effortless(ly)?|harness|tapestry|realm|embark|dive into|"
         r"it's important to note|in today's world|at the end of the day|a testament to)\b", re.I)),
 ]
+TEX_RULES = [("em dash (LaTeX ---)", re.compile(r"(?<!-)---(?!-)"))]
 STYLE_RULES = [
     ("pill radius", re.compile(r"border-radius\s*:\s*(\d{3,}|[5-9]\d)px|rounded-full|9999px", re.I)),
     ("radius off-scale", re.compile(r"border-radius\s*:\s*(?!0\b|0px|2px|4px|50%)[\d.]+(px|rem|em)", re.I)),
@@ -45,7 +46,7 @@ def files_to_check():
 def main():
     findings = []
     for path, rel in files_to_check():
-        rules = TEXT_RULES + (STYLE_RULES if path.suffix in STYLE_EXT else [])
+        rules = TEXT_RULES + (STYLE_RULES if path.suffix in STYLE_EXT else []) + (TEX_RULES if path.suffix == ".tex" else [])
         for n, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
             if "slop-ok:" in line:
                 continue

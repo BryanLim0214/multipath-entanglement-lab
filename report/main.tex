@@ -1,0 +1,98 @@
+\documentclass[conference]{IEEEtran}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage[hidelinks]{hyperref}
+\graphicspath{{../figures/}}
+\IfFileExists{numbers.tex}{\input{numbers.tex}}{}
+
+\begin{document}
+
+\title{Reproducing Multipath Entanglement Distribution:\\ ILP, Heuristic, and a QuNetSim Check}
+
+\author{\IEEEauthorblockN{Panhapiseth Lim and Victor Akinmade}
+\IEEEauthorblockA{University of Texas of the Permian Basin\\
+lim\_p65274@utpb.edu, akinmade\_v27471@utpb.edu}}
+
+\maketitle
+
+\begin{abstract}
+We reproduce the main comparison of Halder, Matus and Fettweis (GLOBECOM 2024): concurrent multipath routing of entanglement requests, solved by an integer linear program (ILP) and by a greedy heuristic, against single-path routing, measured by blocking ratio. The paper leaves several model details unstated, so we rebuilt the model from the text, recorded 25 explicit assumptions, cross-checked the ILP three ways, and checked the qualitative claim in the QuNetSim packet-level simulator with real Bell-state measurements. We also test one pre-registered extension: relaxing the heuristic's capacity headroom only for requests on their last chance. We report what reproduced, what did not, and seven inconsistencies we found in the paper.
+\end{abstract}
+
+\section{Introduction}
+Two distant nodes of a quantum network share entanglement by generating Bell pairs on each link and joining them by entanglement swapping at intermediate nodes. Link generation is probabilistic, quantum memories hold pairs only for a short cut-off time, and every swap lowers fidelity. Routing must therefore decide which requests to serve in each time window and over which paths.
+
+Halder, Matus and Fettweis~\cite{halder2024} study online requests that each need $n$ Bell pairs between a source and a destination before a deadline. They allow a request to split its pairs over several edge-disjoint paths, formulate placement in each window as an ILP, propose a faster greedy heuristic, and report that multipath routing blocks fewer requests than single-path routing (for example, a blocking ratio of 0.27 against 0.42 at link success probability $q=0.9$).
+
+This report has three parts, following the lab handout:
+\begin{itemize}
+\item \textbf{Part A} rebuilds the paper's abstract model in Python and compares single-path routing, the ILP and the heuristic.
+\item \textbf{Part B} implements single-path and multipath routing in QuNetSim~\cite{qunetsim} and checks whether multipath still helps when link failures happen inside a packet-level simulator.
+\item \textbf{Part C} tests one small extension to the heuristic, with a hypothesis fixed before any run.
+\end{itemize}
+All code, data and assumptions are public.\footnote{\url{https://github.com/BryanLim0214/multipath-entanglement-lab}}
+
+\section{Models and Assumptions}
+\subsection{Network and request model}
+The network is a graph $G(V,E)$. Each neighbouring pair $(i,j)$ has $M$ quantum memories. At the start of each window of $t_c$ timeslots, each memory tries once to create a Bell pair with probability $q$, so the link capacity is $C_{ij}\sim\mathrm{Binomial}(M,q)$. All pairs are discarded at the end of the window, and swapping is assumed to succeed.
+
+A request $r=\langle s,d,n,a,h,b,f\rangle$ needs $n$ pairs from $s$ to $d$. It arrives at slot $a$, runs for $h$ slots, has deadline $b$, and requires end-to-end fidelity $f$. It must run inside a single window. In its $i$-th eligible window it has priority $\rho=i/|W_r|$, so a request on its last chance has $\rho=1$. The blocking ratio is the share of requests never served.
+
+\subsection{Fidelity limit}
+The paper states only the resulting hop limits. Werner-state swapping reproduces both of them. With $w=(4F-1)/3$, a path of $L$ links has fidelity $F_L=(3w^L+1)/4$. For $F=0.95$, $F_5=0.781\geq0.78>F_6=0.746$, so a path may use at most 4 intermediate nodes. The same formula gives 10 intermediate nodes for $f=0.6$, which matches the paper's large setup.
+
+\subsection{ILP and heuristic}
+In each window, the ILP maximises $\sum_r \rho_r X_r$ subject to these constraints:
+\begin{itemize}
+\item flow conservation for up to $K$ paths per request;
+\item edge-disjointness among a request's paths;
+\item the intermediate-node limit;
+\item all-or-nothing delivery of the $n$ pairs;
+\item link capacity.
+\end{itemize}
+
+The heuristic walks greedily from $s$. At each step it moves to the neighbour with the best ratio of bottleneck capacity to the number of intermediate nodes on its best continuation. It then removes the path's links and repeats to collect edge-disjoint paths. A request is placed on one path if that path's bottleneck is at least $n\delta$. Otherwise it is split, with $\lfloor BC_j/\delta\rfloor$ pairs per path, using $\delta=2$. The ILP has no such headroom factor. This mismatch motivates our extension.
+
+\subsection{Assumptions}
+Every choice the paper leaves open is recorded with an identifier in \texttt{ASSUMPTIONS.md}. The ones that matter most are listed in Table~\ref{tab:assumptions}. For comparison we use only the numbers the paper prints, in its text and in the paper's Tables~I and~II. We read nothing off its figures.
+
+\begin{table}[t]
+\caption{Assumptions that shape the results}
+\label{tab:assumptions}
+\centering\small
+\begin{tabular}{@{}lp{0.72\columnwidth}@{}}
+\toprule
+ID & Choice \\
+\midrule
+A1 & Demand $n$ is never given. We calibrate its range on $\Gamma$ (the paper's Table~I) only, so blocking ratio is a held-out check. \\
+A2 & At most $K=\min(\deg s,\deg d)$ paths per request. \\
+A3 & Arrival slot $a\sim\mathrm{Poisson}(t_c/4)$, read as a direct draw. \\
+A4 & The single-path ILP is the ILP with $K=1$. The single-path heuristic is the heuristic without splitting. \\
+A8 & A path with $\gamma$ pairs uses $\gamma$ seats on each link (Fig.~1c). $\delta$ only caps one request's share. \\
+A22 & In QuNetSim, each link has $M$ attempts per window, each succeeding with probability $q$. Routes are fixed before outcomes are known. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Part A: Abstract-Model Reproduction}
+
+\section{Part B: QuNetSim Check}
+
+\section{Extension: Deadline-Aware Headroom}
+
+\section{Limitations}
+
+\section*{AI-Use Statement}
+
+\begin{thebibliography}{9}
+\bibitem{halder2024} J.~Halder, E.~Matus, and G.~Fettweis, ``On the concurrent multipath entanglement distribution in quantum networks,'' in \emph{Proc. IEEE GLOBECOM}, 2024, pp.~2791--2796.
+\bibitem{qunetsim} S.~DiAdamo, J.~N\"otzel, B.~Zanger, and M.~M.~Be\c{s}e, ``QuNetSim: A software framework for quantum networks,'' \emph{IEEE Trans. Quantum Eng.}, vol.~2, 2021.
+\bibitem{halder2024sr} J.~Halder \emph{et al.}, ``Optimal routing and end-to-end entanglement distribution in quantum networks,'' \emph{Sci. Rep.}, vol.~14, 2024.
+\bibitem{briegel1998} H.-J.~Briegel, W.~D\"ur, J.~I.~Cirac, and P.~Zoller, ``Quantum repeaters: The role of imperfect local operations in quantum communication,'' \emph{Phys. Rev. Lett.}, vol.~81, p.~5932, 1998.
+\bibitem{highs} Q.~Huangfu and J.~A.~J.~Hall, ``Parallelizing the dual revised simplex method,'' \emph{Math. Prog. Comp.}, vol.~10, pp.~119--142, 2018.
+\bibitem{pulp} S.~Mitchell, M.~O'Sullivan, and I.~Dunning, ``PuLP: A linear programming toolkit for Python,'' Univ. of Auckland, 2011.
+\end{thebibliography}
+
+\end{document}
