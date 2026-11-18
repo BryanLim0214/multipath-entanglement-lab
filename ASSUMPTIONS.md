@@ -37,6 +37,9 @@ The paper (Halder, Matus, Fettweis, GLOBECOM 2024) leaves some model details uns
 Sub-requests run sequentially, because 4 concurrent requests failed intermittently in probe P8 and concurrency gave no speed-up.
 
 The handout-literal variant, which uses the simulator's own `packet_drop_rate`, is also run and reported. | assumed; implementation chosen by P7, P8 |
+| A23 | Source, destination and f per request | Not given. f is set per experiment (0.78 small, 0.6 large). | (s, d) is drawn uniformly over ordered pairs of distinct nodes. Every request in a run has the same f, so the same I^r. | assumed |
+| A24 | Slot numbering and arrivals at 0 | Not given. | Slots are numbered 1 to T. Window w covers slots (w−1)·t_c+1 to w·t_c. A Poisson draw of 0 is set to slot 1. | assumed |
+| A25 | When a window's decision is made | R_w = "unplaced requests eligible to allocate in window w". | Each window's placement is decided once, at its first slot, over every unplaced request that is eligible for that window under A14. A request arriving later in the same window is still considered. This is a mild look-ahead that the paper's eligibility rule implies. | paper + assumed |
 | A21 | ILP-δ (our diagnostic) | (not in paper) | The paper's ILP plus a per-request, per-edge cap π_r(e) ≤ ⌊C_e/δ⌋. Every heuristic allocation is then also feasible for ILP-δ. | ours |
 
 ## Paper inconsistencies we found

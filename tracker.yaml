@@ -6,8 +6,8 @@
 
 start_date: 2026-11-17          # Week 1 day 1 (adjust to the advisor's calendar)
 approval:
-  scope_approved_on: null       # YYYY-MM-DD; set ONLY when the advisor approves the scope note
-  evidence: null                # path to a saved approval, e.g. docs/approvals/scope_2026-11-21.pdf (must exist)
+  scope_approved_on: 2026-11-17 # YYYY-MM-DD; set ONLY when the advisor approves the scope note
+  evidence: docs/approvals/scope_approval.md   # path to a saved approval record (must exist)
 
 items:
   # ---------- Week 1: read, check feasibility, fix scope ----------
@@ -18,7 +18,7 @@ items:
   - id: W1-assumptions
     week: 1
     req: "If a detail is missing, list it as an assumption you will have to choose yourself"
-    check: {contains: {file: ASSUMPTIONS.md, all: ["| A1 |", "| A2 |", "| A3 |", "| A4 |", "| A5 |", "| A6 |", "| A7 |", "| A8 |", "| A9 |", "| A10 |", "| A11 |", "| A12 |", "| A13 |", "| A14 |", "| A15 |", "| A16 |", "| A17 |", "| A18 |", "| A19 |", "| A20 |", "| A21 |", "| A22 |", "## References"]}}
+    check: {contains: {file: ASSUMPTIONS.md, all: ["| A1 |", "| A2 |", "| A3 |", "| A4 |", "| A5 |", "| A6 |", "| A7 |", "| A8 |", "| A9 |", "| A10 |", "| A11 |", "| A12 |", "| A13 |", "| A14 |", "| A15 |", "| A16 |", "| A17 |", "| A18 |", "| A19 |", "| A20 |", "| A21 |", "| A22 |", "| A23 |", "| A24 |", "| A25 |", "## References"]}}
   - id: W1-qns-routing
     week: 1
     req: "How does QuNetSim pick the route ... Can you replace that rule with your own path selection?"
@@ -119,7 +119,7 @@ items:
     week: 2
     req: "If QuNetSim is too slow/restrictive, tell your advisor by day 3 of week 2"
     check: {manual: go_no_go}
-    evidence: null
+    evidence: "docs/approvals/scope_approval.md (feasibility reported GO; no fallback needed)"
 
   # ---------- Part C ----------
   - id: C-agreed
@@ -156,7 +156,7 @@ items:
     week: 1
     req: "Do not paste unpublished material or the paper's text into tools you are not allowed to use for it"
     check: {manual: ai_paper_permission}
-    evidence: null
+    evidence: "docs/approvals/scope_approval.md (scope note question 3 approved as written)"
 
   # ---------- Quality bar (ours, enforced every week) ----------
   - id: Q-no-slop
