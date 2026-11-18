@@ -63,6 +63,9 @@ def make_window_input(cfg: SimConfig, graph, w: int, capacity, pending, rho_maps
 
 
 def check_legal(win: WindowInput, result: PlaceResult, w: int) -> None:
+    """Stop the run on a solver error or an illegal answer; never count either as 'nothing placed'."""
+    if result.status == "error":
+        raise RuntimeError(f"Window {w}: the placement method reported a solver error")
     errs = validate(win, result.allocations)
     if errs:
         raise RuntimeError(f"Window {w}: illegal answer: " + "; ".join(errs))
