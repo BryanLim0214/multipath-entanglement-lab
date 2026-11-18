@@ -1,0 +1,37 @@
+# Copyrighted source PDFs (IEEE license watermark / course material) - keep local only
+*.pdf
+!report/*.pdf
+!figures/**/*.pdf
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# Solver / experiment scratch
+*.lp
+*.mps
+results/cache/
+partB_qunetsim/probes/out/
+
+# LaTeX build
+report/*.aux
+report/*.log
+report/*.out
+report/*.bbl
+report/*.blg
+report/*.synctex.gz
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Regenerated on every tracker run (CI produces it per commit)
+.agent/TRACKER_STATUS.md
+
+# Claude Code local settings
+.claude/settings.local.json

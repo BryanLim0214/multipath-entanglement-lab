@@ -1,0 +1,186 @@
+﻿# Every requirement in the lab handout, paired with a machine check.
+# Run: .venv\Scripts\python.exe tools\check_tracker.py
+# Status: PASS | FAIL | TODO (not due yet) | MANUAL (needs human evidence)
+# Check types:
+#   exists, contains, cmd, manual, committed_before, no_code_before_approval
+
+start_date: 2026-11-17          # Week 1 day 1 (adjust to the advisor's calendar)
+approval:
+  scope_approved_on: null       # YYYY-MM-DD; set ONLY when the advisor approves the scope note
+  evidence: null                # e.g. "advisor email 2026-11-21, saved in docs/approvals/"
+
+items:
+  # ---------- Week 1: read, check feasibility, fix scope ----------
+  - id: W1-notes
+    week: 1
+    req: "Write down, in your own words: network model; request model + blocking ratio; ILP + heuristic steps; topologies, parameters, runs"
+    check: {contains: {file: docs/paper_notes.md, all: ["## Network model", "## Request model", "## ILP formulation", "## Heuristic steps", "## Evaluation setup"], none: ["✏️"]}}
+  - id: W1-assumptions
+    week: 1
+    req: "If a detail is missing, list it as an assumption you will have to choose yourself"
+    check: {contains: {file: ASSUMPTIONS.md, all: ["| A1 ", "| A5 ", "| A8 ", "| A21 "]}}
+  - id: W1-qns-routing
+    week: 1
+    req: "How does QuNetSim pick the route ... Can you replace that rule with your own path selection?"
+    check: {contains: {file: docs/qunetsim_feasibility.md, all: ["Q1", "network.py:"]}}
+  - id: W1-qns-knobs
+    week: 1
+    req: "Does it let you set link loss, noise, or memory limits? Which parameters?"
+    check: {contains: {file: docs/qunetsim_feasibility.md, all: ["Q2", "packet_drop_rate", "set_epr_memory_limit"]}}
+  - id: W1-qns-runtime
+    week: 1
+    req: "How long does one run take on a 6-10 node network, and how does it grow with the number of requests?"
+    check: {exists: [results/partB_probe_runtime.csv, figures/F0_qunetsim_runtime.png]}
+  - id: W1-qns-version
+    week: 1
+    req: "Which library version are you using? Pin it in a requirements file."
+    check: {contains: {file: requirements.txt, all: ["qunetsim==0.1.3.post1"]}}
+  - id: W1-scope
+    week: 1
+    req: "One-page note: 2-3 topologies, 2-3 metrics, the one extension, what you will cut"
+    check: {contains: {file: docs/scope_note.md, all: ["## Topologies", "## Metrics", "## Extension", "## Hypothesis", "## Cut list"]}}
+  - id: W1-approved
+    week: 1
+    req: "One-page scope note approved by your advisor"
+    check: {manual: approval}
+  - id: W1-no-early-code
+    week: 1
+    req: "Do not start coding the full project before that [approval]"
+    check: {no_code_before_approval: {paths: [src/]}}
+
+  # ---------- Part A ----------
+  - id: A-model
+    week: 2
+    req: "Use networkx for the graph. Encode link capacities, success probabilities, and requests as the paper defines; record silent choices in ASSUMPTIONS.md"
+    check: {contains: {file: src/qmp/model.py, all: ["networkx", "# A"]}}
+  - id: A-methods
+    week: 2
+    req: "Implement three methods: single-path baseline (shortest path), the paper's ILP (PuLP/OR-Tools), the paper's heuristic"
+    check: {cmd: "python -m pytest -q tests/test_methods_smoke.py"}
+  - id: A-toy-first
+    week: 2
+    req: "Work out the optimal answer by hand (independent check)"
+    check: {committed_before: {first: tests/toy_expected.md, then: src/qmp/ilp.py}}
+  - id: A-toy-match
+    week: 2
+    req: "Confirm your ILP returns the hand-solved answer"
+    check: {cmd: "python -m pytest -q tests/test_toys.py"}
+  - id: A-heu-le-ilp
+    week: 2
+    req: "Confirm the heuristic never beats the ILP on the paper's objective"
+    check: {cmd: "python -m pytest -q tests/test_invariants.py tests/test_bruteforce.py"}
+  - id: A-canaries
+    week: 2
+    req: "(ours) planted bugs must be caught by the tests"
+    check: {cmd: "python -m pytest -q tests/test_canaries.py"}
+  - id: A-seeds
+    week: 2
+    req: "At least 30 random seeds per setting; mean blocking ratio with a 95% confidence interval"
+    check: {cmd: "python tools/check_runs.py results/partA_small.csv --min 30"}
+  - id: A-plot
+    week: 2
+    req: "Milestone: plot of blocking ratio vs load for single-path, ILP, heuristic"
+    check: {exists: [figures/F1_partA_blocking.png]}
+  - id: A-differences
+    week: 2
+    req: "Plot next to the paper's trends; explain any gap; short list of differences from the paper"
+    check: {contains: {file: docs/differences_from_paper.md, all: ["## Differences"]}}
+
+  # ---------- Part B ----------
+  - id: B-topologies
+    week: 3
+    req: "Chain A-B-C; two disjoint paths (6 nodes, two branches); a small grid"
+    check: {contains: {file: partB_qunetsim/topologies.py, all: ["chain", "two_branch", "grid"]}}
+  - id: B-single
+    week: 3
+    req: "Single-path baseline using QuNetSim's default routing; record success or failure"
+    check: {contains: {file: partB_qunetsim/routing.py, all: ["shortest_path"]}}
+  - id: B-multi
+    week: 3
+    req: "Own routing function picking up to k paths (k=2); use the hook, or wrap the send function rather than editing the library"
+    check: {contains: {file: partB_qunetsim/routing.py, all: ["edge_disjoint", "quantum_routing_algo"]}}
+  - id: B-failure
+    week: 3
+    req: "Configure link loss or noise using the simulator's parameters; document the values"
+    check: {contains: {file: docs/partB_setup.md, all: ["packet_drop_rate"]}}
+  - id: B-runs
+    week: 3
+    req: "Record success/failure, fidelity (if exposed), completion time; >=20 repeats per setting, mean with CI"
+    check: {cmd: "python tools/check_runs.py results/partB.csv --min 20"}
+  - id: B-plot
+    week: 3
+    req: "Milestone: table or plot comparing SP vs MP success rate on at least two topologies + paragraph on differences from Part A"
+    check: {exists: [figures/F3_partB_success.png, docs/partB_vs_partA.md]}
+  - id: B-fallback
+    week: 2
+    req: "If QuNetSim is too slow/restrictive, tell your advisor by day 3 of week 2"
+    check: {manual: go_no_go}
+    evidence: null
+
+  # ---------- Part C ----------
+  - id: C-agreed
+    week: 1
+    req: "Pick one extension, agree on it with your advisor in week 1"
+    check: {contains: {file: docs/scope_note.md, all: ["## Extension"]}}
+  - id: C-hypothesis-first
+    week: 3
+    req: "State a hypothesis before running anything"
+    check: {committed_before: {first: docs/scope_note.md, then: results/partC.csv}}
+  - id: C-same-baselines
+    week: 3
+    req: "Compare against the same baselines, with the same seeds and runs"
+    check: {cmd: "python tools/check_runs.py results/partC.csv --min 30 --same-seeds-as results/partA_small.csv"}
+  - id: C-plot
+    week: 4
+    req: "Milestone: one plot for the extension + hypothesis and whether the data supports it"
+    check: {exists: [figures/F4_partC_extension.png]}
+
+  # ---------- AI rules ----------
+  - id: AI-log
+    week: 1
+    req: "Keep a short AI_LOG.md listing what you asked the AI to do and what you changed or rejected"
+    check: {contains: {file: AI_LOG.md, all: ["| Date |"]}}
+  - id: AI-explain
+    week: 4
+    req: "You must be able to explain every line you submit and every result"
+    check: {exists: [docs/explain_back/week2.md, docs/explain_back/week3.md, docs/explain_back/week4.md]}
+  - id: AI-verify-lib
+    week: 1
+    req: "Verify library behaviour in the QuNetSim documentation or source code"
+    check: {contains: {file: docs/qunetsim_feasibility.md, all: ["site-packages/qunetsim/"]}}
+  - id: AI-paper-text
+    week: 1
+    req: "Do not paste unpublished material or the paper's text into tools you are not allowed to use for it"
+    check: {manual: ai_paper_permission}
+    evidence: null
+
+  # ---------- Final deliverables ----------
+  - id: D-plots
+    week: 4
+    req: "3-5 result plots"
+    check: {cmd: "python -c \"import glob,sys; n=len([f for f in glob.glob('figures/F[1-4]*.png')]); sys.exit(0 if 3<=n<=5 else 1)\""}
+  - id: D-report
+    week: 4
+    req: "4-6 page report that states honestly what was and was not reproduced"
+    check: {cmd: "python tools/check_report.py report/main.log --min-pages 4 --max-pages 6"}
+  - id: D-outline
+    week: 4
+    req: "Outline: problem+paper summary; models+assumptions; Part A; Part B; extension; limitations; AI-use statement"
+    check: {contains: {file: report/main.tex, all: ["\\section{Introduction", "\\section{Models and Assumptions", "\\section{Part A", "\\section{Part B", "\\section{Extension", "\\section{Limitations", "\\section*{AI-Use Statement"]}}
+  - id: D-limitations
+    week: 4
+    req: "State: abstract model is a simplification; QuNetSim results are a qualitative check, not real hardware; results depend on chosen parameters"
+    check: {contains: {file: report/main.tex, all: ["simplification", "qualitative check", "real hardware", "parameters we chose"]}}
+  - id: D-slides
+    week: 4
+    req: "(ours) slide deck for the presentation"
+    check: {exists: [slides/]}
+  - id: D-rerun
+    week: 4
+    req: "Another person can rerun your code from the README"
+    check: {cmd: "python run_all.py --quick"}
+  - id: D-rerun-human
+    week: 4
+    req: "Another person can rerun your code from the README (a real person)"
+    check: {manual: classmate_rerun}
+    evidence: null
