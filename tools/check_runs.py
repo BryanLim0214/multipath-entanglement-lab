@@ -10,7 +10,7 @@ import sys
 import pandas as pd
 
 METRICS = {"blocking_ratio", "success_rate", "gamma", "seconds", "windows_time_limit", "completion_time",
-           "placed", "delivered", "objective"}
+           "placed", "delivered", "objective", "attempts", "requests", "served", "correlated"}
 
 
 def main():
