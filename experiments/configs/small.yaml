@@ -1,0 +1,16 @@
+# The paper's small setup (Sec. IV-A). n_spec is read from results/calibration_choice.yaml (A1).
+experiment: small
+rows: 3
+cols: 3
+R: [60]
+M: 6
+T: 100
+tc: [10]
+F: 0.95
+f: 0.78
+q: [0.5, 0.6, 0.7, 0.8, 0.9]
+n_spec: from_calibration
+seeds: 30
+methods: [SP-SPF, SP-Heu, MP-Heu, SP-ILP, MP-ILP]
+trace_seeds: [0, 1, 2]
+trace_q: [0.5, 0.7, 0.9]

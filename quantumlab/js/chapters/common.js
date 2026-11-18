@@ -3,6 +3,8 @@
  */
 import { h } from "../ui.js";
 
+const SVG_NS = "http://www.w3.org/2000/svg";
+
 /**
  * The heading block at the top of a chapter or room.
  * @param {string} label Small line above the title, such as "Chapter 1 of 5".
@@ -34,4 +36,22 @@ export function taskBox(title, ...children) {
  */
 export function outliner(elements) {
   return (on) => elements.forEach((el) => el.classList.toggle("hint-target", on));
+}
+
+/**
+ * Make an SVG element with attributes (used by charts in the chapters).
+ * @param {string} tag SVG tag name.
+ * @param {Object<string, string|number>} attrs Attributes.
+ * @param {string} [text] Optional text content.
+ * @returns {SVGElement} The element.
+ */
+export function svgEl(tag, attrs, text) {
+  const el = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    el.setAttribute(k, String(v));
+  }
+  if (text !== undefined) {
+    el.textContent = text;
+  }
+  return el;
 }

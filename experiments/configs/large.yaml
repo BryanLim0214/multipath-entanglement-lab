@@ -1,0 +1,14 @@
+# The paper's large setup (Sec. IV-B), heuristics only.
+experiment: large
+rows: 5
+cols: 5
+R: [1000]
+M: 10
+T: 10000
+tc: [10, 20]
+F: 0.95
+f: 0.6
+q: [0.5, 0.6, 0.7, 0.8, 0.9]
+n_spec: from_calibration
+seeds: 30
+methods: [SP-Heu, MP-Heu]

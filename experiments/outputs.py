@@ -1,0 +1,254 @@
+"""Text outputs built from the result CSVs: results/partA_summary.md and report/numbers.tex.
+
+Every number is read or computed from results/ and data/paper_values.yaml. Nothing is typed by hand.
+"""
+from __future__ import annotations
+
+from pathlib import Path
+
+import pandas as pd
+import yaml
+
+from experiments.analysis import THRESHOLD, VERDICT_Q, is_supported, paired_difference, summarize, verdict_table
+from experiments.common import ROOT, write_text_atomic
+
+Q_WORD = {0.5: "Five", 0.6: "Six", 0.7: "Seven", 0.8: "Eight", 0.9: "Nine"}
+R_WORD = {20: "Twenty", 40: "Forty", 60: "Sixty", 80: "Eighty", 100: "Hundred"}
+NUM_WORD = {1: "One", 2: "Two", 3: "Three", 4: "Four", 5: "Five", 6: "Six", 7: "Seven", 8: "Eight",
+            9: "Nine", 10: "Ten"}
+METHOD_TOKEN = {"SP-SPF": "SPSPF", "SP-Heu": "SPHeu", "MP-Heu": "MPHeu", "SP-ILP": "SPILP", "MP-ILP": "MPILP",
+                "MP-Heu-d1": "MPHeuDone", "MP-Heu-deadline": "MPHeuDead", "MP-ILP-delta": "MPILPDelta"}
+PAPER_METHODS = ["SP-SPF", "SP-Heu", "MP-Heu", "SP-ILP", "MP-ILP"]
+
+
+def paper_values() -> dict:
+    return yaml.safe_load((ROOT / "data" / "paper_values.yaml").read_text(encoding="utf-8"))
+
+
+def num(x: float, digits: int = 2) -> str:
+    """Fixed decimals; a minus sign is set as math so LaTeX does not print a hyphen."""
+    s = f"{x:.{digits}f}"
+    return "$-$" + s[1:] if s.startswith("-") else s
+
+
+def pm(mean: float, ci: float) -> str:
+    return f"{mean:.2f} ± {ci:.2f}"
+
+
+def load_csv(results: Path, name: str) -> pd.DataFrame | None:
+    path = results / name
+    return pd.read_csv(path) if path.exists() else None
+
+
+# ---------------------------------------------------------------- markdown summary
+
+def table_md(df: pd.DataFrame, rows: list[str], col: str, metric: str, row_key: str = "method") -> list[str]:
+    """Markdown table of mean ± CI, one row per method, one column per value of `col`."""
+    s = summarize(df, [row_key, col], metric)
+    cols = sorted(s[col].unique())
+    out = [f"| {row_key} | " + " | ".join(f"{col} = {c}" for c in cols) + " |", "|---|" + "---|" * len(cols)]
+    for m in rows:
+        cells = []
+        for c in cols:
+            r = s[(s[row_key] == m) & (s[col] == c)]
+            cells.append(pm(r["mean"].iloc[0], r["ci"].iloc[0]) if len(r) else "")
+        out.append(f"| {m} | " + " | ".join(cells) + " |")
+    return out
+
+
+def time_table_md(small: pd.DataFrame, paper: dict) -> list[str]:
+    """Our mean compute time per run next to the paper's Table I values."""
+    s = summarize(small, ["method", "q"], "seconds")
+    qs = paper["q"]
+    out = ["| method | " + " | ".join(f"q = {q}: ours / paper (s)" for q in qs) + " |", "|---|" + "---|" * len(qs)]
+    for m in PAPER_METHODS:
+        if m == "SP-SPF":
+            ref = [None] * len(qs)
+        else:
+            t = paper["small"]["compute_time_s"][m]
+            ref = t if isinstance(t, list) else [t] * len(qs)
+        cells = []
+        for q, p in zip(qs, ref):
+            r = s[(s["method"] == m) & (s["q"] == q)]
+            ours = f"{r['mean'].iloc[0]:.2f}" if len(r) else "n/a"
+            cells.append(f"{ours} / {'n/a' if p is None else p}")
+        out.append(f"| {m} | " + " | ".join(cells) + " |")
+    return out
+
+
+def trend_lines(small: pd.DataFrame) -> list[str]:
+    """Computed yes/no answers to the trends listed in data/paper_values.yaml."""
+    s = summarize(small, ["method", "q"], "blocking_ratio").pivot(index="q", columns="method", values="mean")
+    mp_below = bool(((s["MP-Heu"] < s["SP-Heu"]) & (s["MP-ILP"] < s["SP-ILP"])).all())
+    falling = {m: bool(s[m].is_monotonic_decreasing) for m in PAPER_METHODS if m in s}
+    g = summarize(small, ["method", "q"], "gamma").pivot(index="q", columns="method", values="mean")
+    gam = {m: bool(g[m].is_monotonic_decreasing) for m in ("MP-Heu", "MP-ILP") if m in g}
+    return [f"- MP below SP at every q (Heu pair and ILP pair): {mp_below}",
+            f"- BR non-increasing in q: {falling}",
+            f"- Gamma non-increasing in q: {gam}"]
+
+
+def calibration_lines(results: Path) -> list[str]:
+    path = results / "calibration_choice.yaml"
+    if not path.exists():
+        path = ROOT / "results" / "calibration_choice.yaml"
+    c = yaml.safe_load(path.read_text(encoding="utf-8"))
+    rows = ["| candidate | RMSE of MP-Heu Gamma vs Table I |", "|---|---|"]
+    rows += [f"| {k} | {v:.3f} |" for k, v in c["rmse"].items()]
+    return [f"Chosen: {c['choice']}. {c['note']}.", ""] + rows
+
+
+def write_summary(results: Path) -> None:
+    """results/partA_summary.md: BR and Gamma by q, BR by |R|, compute time, trends, calibration."""
+    small, load = load_csv(results, "partA_small.csv"), load_csv(results, "partA_load.csv")
+    paper = paper_values()
+    n = int(small.groupby(["method", "q"]).size().min())
+    lines = ["# Part A summary", "",
+             f"Mean ± 95% CI half-width over {n} seeds, 3x3 grid, |R| = 60 unless stated. Generated by experiments/make_figures.py.",
+             "", "## Blocking ratio by q", ""]
+    lines += table_md(small, PAPER_METHODS, "q", "blocking_ratio")
+    lines += ["", "## Gamma by q (share of served requests that used more than one path)", ""]
+    lines += table_md(small, PAPER_METHODS, "q", "gamma")
+    if load is not None:
+        lines += ["", "## Blocking ratio by |R| at q = 0.7", ""]
+        lines += table_md(load, PAPER_METHODS, "R", "blocking_ratio")
+    lines += ["", "## Compute time per run (sum of placer time over all windows)", ""]
+    lines += time_table_md(small, paper)
+    lines += ["", "Hardware and solver differ from the paper. Ours: HiGHS on the path formulation (A26; the single-path "
+              "model for SP-ILP), one thread per job, several jobs in parallel on a 28-thread desktop. The paper used "
+              "CPLEX on unknown hardware, so only the ordering of the methods is a fair comparison.",
+              "", "## Trend checks (computed)", ""] + trend_lines(small)
+    lines += ["", "## Calibration of n (A1)", ""] + calibration_lines(results)
+    audit = load_csv(results, "partA_invariants.csv")
+    if audit is not None:
+        lines += ["", "## Invariant audit", "",
+                  f"Windows checked: {len(audit)}. Violations: {int(audit['violation'].sum())}. "
+                  f"Inconclusive (time limit): {int(audit['inconclusive'].sum())}."]
+    write_text_atomic("\n".join(lines) + "\n", results / "partA_summary.md")
+
+
+# ---------------------------------------------------------------- LaTeX macros
+
+class Macros:
+    """Collects \\newcommand lines and refuses duplicate or non-letter names."""
+
+    def __init__(self):
+        self.items: dict[str, str] = {}
+
+    def add(self, name: str, value: str) -> None:
+        assert name.isalpha(), f"macro name must be letters only: {name}"
+        assert name not in self.items, f"duplicate macro {name}"
+        self.items[name] = value
+
+    def text(self) -> str:
+        head = "% Generated by experiments/make_figures.py from results/. Do not edit by hand.\n"
+        return head + "".join(f"\\newcommand{{\\{k}}}{{{v}}}\n" for k, v in self.items.items())
+
+
+def add_means(m: Macros, df: pd.DataFrame, by: str, words: dict, prefix_tag: str) -> None:
+    """Macros br/ci/gamma/gammaci/runtime for every (method, by-value) in df."""
+    for metric, names in (("blocking_ratio", ("br", "ci")), ("gamma", ("gamma", "gammaci"))):
+        s = summarize(df, ["method", by], metric)
+        for r in s.itertuples():
+            tag = f"{METHOD_TOKEN[r.method]}{prefix_tag}{words[getattr(r, by)]}"
+            m.add(names[0] + tag, num(r.mean))
+            m.add(names[1] + tag, num(r.ci))
+    for r in summarize(df, ["method", by], "seconds").itertuples():
+        m.add("runtime" + f"{METHOD_TOKEN[r.method]}{prefix_tag}{words[getattr(r, by)]}", num(r.mean, 1))
+
+
+def add_calibration(m: Macros, results: Path) -> None:
+    path = results / "calibration_choice.yaml"
+    if not path.exists():
+        path = ROOT / "results" / "calibration_choice.yaml"
+    c = yaml.safe_load(path.read_text(encoding="utf-8"))
+    _, lo, hi = c["choice"].split(":")
+    m.add("nChoice", f"\\ensuremath{{\\mathcal{{U}}\\{{{lo},{hi}\\}}}}")
+    m.add("nChoiceLo", lo)
+    m.add("nChoiceHi", hi)
+    m.add("gammaRMSE", num(c["rmse"][c["choice"]], 3))
+    for cand, v in c["rmse"].items():
+        _, a, b = cand.split(":")
+        m.add(f"rmse{NUM_WORD[int(a)]}{NUM_WORD[int(b)]}", num(v, 3))
+
+
+def add_paper(m: Macros, paper: dict) -> None:
+    for meth in ("MP-ILP", "SP-ILP"):
+        m.add(f"paperBR{METHOD_TOKEN[meth]}qNine", num(paper["small"]["blocking_ratio_at_q09"][meth]))
+    for meth, vals in paper["small"]["gamma"].items():
+        for q, v in zip(paper["q"], vals):
+            m.add(f"paperGamma{METHOD_TOKEN[meth]}q{Q_WORD[q]}", num(v))
+    for meth, t in paper["small"]["compute_time_s"].items():
+        if isinstance(t, list):
+            for q, v in zip(paper["q"], t):
+                m.add(f"paperTime{METHOD_TOKEN[meth]}q{Q_WORD[q]}", str(v))
+        else:
+            m.add(f"paperTime{METHOD_TOKEN[meth]}", str(t))
+    for tc, vals in paper["large"]["blocking_ratio_at_q09"].items():
+        for meth, v in vals.items():
+            m.add(f"paperBRLarge{METHOD_TOKEN[meth]}{'tcTen' if tc == 'tc10' else 'tcTwenty'}qNine", num(v, 3))
+
+
+def add_audit(m: Macros, results: Path) -> None:
+    audit = load_csv(results, "partA_invariants.csv")
+    if audit is None:
+        return
+    m.add("auditWindows", str(len(audit)))
+    m.add("auditViolations", str(int(audit["violation"].sum())))
+    m.add("auditInconclusive", str(int(audit["inconclusive"].sum())))
+
+
+def add_extension(m: Macros, partc: pd.DataFrame) -> None:
+    m.add("extThreshold", num(THRESHOLD))
+    for r in verdict_table(partc).itertuples():
+        w = Q_WORD[r.q]
+        m.add(f"extDiffq{w}", num(r.deadline_diff))
+        m.add(f"extCIq{w}", num(r.deadline_ci))
+        m.add(f"extCIloq{w}", num(r.deadline_lo))
+        m.add(f"extCIhiq{w}", num(r.deadline_hi))
+        m.add(f"extDoneDiffq{w}", num(r.d1_diff))
+        m.add(f"extDoneCIq{w}", num(r.d1_ci))
+        m.add(f"extGapDeadq{w}", "n/a" if pd.isna(r.gap_closed_deadline) else num(r.gap_closed_deadline))
+        m.add(f"extGapDoneq{w}", "n/a" if pd.isna(r.gap_closed_d1) else num(r.gap_closed_d1))
+    if VERDICT_Q in set(partc["q"]):
+        m.add("extVerdict", "supported" if is_supported(paired_difference(partc, "MP-Heu", "MP-Heu-deadline", VERDICT_Q))
+              else "not supported")
+
+
+def add_large(m: Macros, large: pd.DataFrame) -> None:
+    tcw = {10: "Ten", 20: "Twenty"}
+    for tc, g in large.groupby("tc"):
+        for r in summarize(g, ["method", "q"], "blocking_ratio").itertuples():
+            tag = f"{METHOD_TOKEN[r.method]}tc{tcw[tc]}q{Q_WORD[r.q]}"
+            m.add("brLarge" + tag, num(r.mean, 3))
+            m.add("ciLarge" + tag, num(r.ci, 3))
+
+
+def write_numbers(results: Path, out_path: Path) -> None:
+    """Write every report macro, using only the CSVs that exist in `results`."""
+    m = Macros()
+    paper = paper_values()
+    small, load = load_csv(results, "partA_small.csv"), load_csv(results, "partA_load.csv")
+    partc, large = load_csv(results, "partC.csv"), load_csv(results, "partA_large.csv")
+    base = small
+    if partc is not None:
+        extra = partc[~partc["method"].isin(set(small["method"]))]
+        base = pd.concat([small, extra], ignore_index=True)
+    add_means(m, base, "q", Q_WORD, "q")
+    if load is not None:
+        add_means(m, load, "R", R_WORD, "R")
+    add_calibration(m, results)
+    add_paper(m, paper)
+    add_audit(m, results)
+    # partC.csv repeats the MP-Heu and MP-ILP rows of partA_small.csv; count each run once
+    extra_c = partc[~partc["method"].isin(set(small["method"]))] if partc is not None else None
+    frames = [d for d in (small, load, extra_c) if d is not None]
+    tl = sum(int(d["windows_time_limit"].sum()) for d in frames)
+    m.add("ilpTimeLimitWindows", str(tl))   # windows where an ILP stopped at the time limit (0 means all proven)
+    m.add("ilpRuns", str(sum(int(d["method"].str.contains("ILP").sum()) for d in frames)))
+    if partc is not None:
+        add_extension(m, partc)
+    if large is not None:
+        add_large(m, large)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    write_text_atomic(m.text(), out_path)

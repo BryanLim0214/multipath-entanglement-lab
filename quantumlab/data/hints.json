@@ -154,5 +154,83 @@
         "student": "Each path has a bottleneck of 4 seats, and the spare-seat rule lets a request use half of them, which is 2 pairs per path."
       }
     ]
+  },
+  "ch6-dice": {
+    "title": "Guess which plan blocks fewer requests over 30 seeds",
+    "breaks": "The 30 seeds are one setup: a 3 by 3 grid and 60 requests. Other sizes or request mixes can give other gaps.",
+    "levels": [
+      {
+        "kid": "Both plans get the same requests and the same planes. What is left to differ?",
+        "student": "The only difference is how many roads one request may use."
+      },
+      {
+        "kid": "Splitting a request over two roads gives it more ways to fit.",
+        "student": "Multipath can use any road that single-path can use, and it can also add roads together, so you would expect its blocking ratio to be lower or equal."
+      },
+      {
+        "kid": "Look at the heuristic pair at the highest q, where blocking is small, and read the paired difference with its error bar.",
+        "student": "If the 95% interval of the paired difference stays above zero, single-path blocks more by more than chance. The guess box is outlined."
+      },
+      {
+        "kid": "Watch the page draw the chart and the table for all 30 seeds.",
+        "student": "The page shows the blocking ratio against q with 95% error bars, then the paired differences. Your guess stays on screen."
+      },
+      {
+        "kid": "Multipath blocks fewer requests than single-path for the heuristic pair.",
+        "student": "The paired difference over 30 seeds is above zero at the 95% level, and both plans saw the same dice."
+      }
+    ]
+  },
+  "arena-find": {
+    "title": "Find a window where multipath serves a request that single-path turns away",
+    "breaks": "A window is one round of seat sampling. A request turned away in one window can still be served in a later window, so turned away is not always lost for good.",
+    "levels": [
+      {
+        "kid": "Which request does the right side serve in this window that the left side does not?",
+        "student": "Step through the windows and compare the two statuses in each row of the request table."
+      },
+      {
+        "kid": "Splitting lets a request use two thin roads when no single road is wide enough.",
+        "student": "Single-path needs one road with room for every pair plus a spare seat. Multipath can add up roads that share no link, so it serves some requests the left side turns away."
+      },
+      {
+        "kid": "Tick the box that shows only requests where the two sides differ, then look for a row where the right side says served.",
+        "student": "Seats are scarcer at a low q, so differences are easier to find there. The filter box is outlined."
+      },
+      {
+        "kid": "Watch the page move to a window where the two sides differ and open that request.",
+        "student": "The page jumps to the first window where the right side serves a request the left side turns away, ticks the filter, and opens its story. Move the slider to go back."
+      },
+      {
+        "kid": "The page opened a request that the multipath side serves and the single-path side turns away in the same window.",
+        "student": "Its story names the roads the multipath side used and what the single-path side lacked."
+      }
+    ]
+  },
+  "arena-ablate": {
+    "title": "Turn one rule off and predict the change first",
+    "breaks": "Switching a rule off shows a precomputed run of the heuristic, not a live recalculation, and it changes only the multipath side. More freedom can still make one later request fail, because an early request takes seats.",
+    "levels": [
+      {
+        "kid": "If a rule is removed, are requests easier or harder to place?",
+        "student": "Think about what each rule asks for: spare seats, several roads, or a limit on middle cities."
+      },
+      {
+        "kid": "The spare-seat rule keeps empty seats on every road, so removing it frees seats.",
+        "student": "With the rule on, one request may use at most half of a link's seats (A21). Without it, a request can take all of them."
+      },
+      {
+        "kid": "Make one guess, more, fewer or the same, and then flip the spare-seat switch.",
+        "student": "Predict the final count of served requests on the multipath side first. The prediction box and the switches are outlined."
+      },
+      {
+        "kid": "Watch the page turn the spare-seat rule off and list the requests that change.",
+        "student": "The page flips the switch and lists the requests that become newly served or newly blocked, compared with all rules on."
+      },
+      {
+        "kid": "Turning the spare-seat rule off frees seats, so the multipath side serves the same number of requests or more in the runs shown here.",
+        "student": "The list under the switches names each request that changed fate."
+      }
+    ]
   }
 }

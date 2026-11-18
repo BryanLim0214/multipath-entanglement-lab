@@ -1,7 +1,7 @@
 # Runs experiment steps one at a time, detached-safe, with a memory guard.
 # Usage: powershell -ExecutionPolicy Bypass -File tools\run_safe.ps1 -Steps partA,partC,figures,partB
 # Each step logs to results\logs\<step>.log; progress goes to results\logs\status.txt (UTF-8).
-param([string[]]$Steps = @("small", "load", "partC", "figures", "partB"), [int]$MinFreeGB = 8)
+param([string[]]$Steps = @("small", "load", "partC", "figures", "partB"), [int]$MinFreeGB = 8, [int]$Workers = 12)
 
 Set-Location (Split-Path $PSScriptRoot -Parent)
 $env:OPENBLAS_NUM_THREADS = "1"; $env:OMP_NUM_THREADS = "1"; $env:MKL_NUM_THREADS = "1"
@@ -10,16 +10,27 @@ New-Item -ItemType Directory -Force results\logs | Out-Null
 $status = "results\logs\status.txt"
 
 $commands = @{
-    small   = @("experiments\run_partA.py", "--config", "small", "--workers", "12")
-    load    = @("experiments\run_partA.py", "--config", "load", "--workers", "12")
-    audit   = @("experiments\audit_invariants.py", "--workers", "12")
-    partC   = @("experiments\run_partC.py", "--workers", "12")
+    small   = @("experiments\run_partA.py", "--config", "small", "--workers", "$Workers")
+    load    = @("experiments\run_partA.py", "--config", "load", "--workers", "$Workers")
+    audit   = @("experiments\audit_invariants.py", "--workers", "$Workers")
+    partC   = @("experiments\run_partC.py", "--workers", "$Workers")
     figures = @("experiments\make_figures.py")
     partB   = @("-m", "partB_qunetsim.run_partB")
+    partBreport = @("-m", "partB_qunetsim.report_partB")
+    crosscheck  = @("-m", "partB_qunetsim.run_partB", "--crosscheck")
+    sensitivity = @("experiments\sensitivity.py", "--workers", "$Workers")
 }
 
 function Write-Status([string]$line) {
     Add-Content -Path $status -Value "$(Get-Date -Format s) $line" -Encoding utf8
+}
+
+# "-File" passes "a,b" as one string; split it, and refuse unknown names instead of starting a bare python.
+$Steps = @($Steps | ForEach-Object { $_ -split "," } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+$unknown = @($Steps | Where-Object { -not $commands.ContainsKey($_) })
+if ($unknown.Count -gt 0) {
+    Write-Status "ABORT unknown step(s): $($unknown -join ', ') (known: $($commands.Keys -join ', '))"
+    exit 2
 }
 
 foreach ($step in $Steps) {

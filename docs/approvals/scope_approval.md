@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Item | One-page scope note, `docs/scope_note.md` and `docs/scope_note.pdf` (commit `c417624`) |
+| Item | One-page scope note, `docs/scope_note.md` and `docs/scope_note.pdf` (commit `bb742b6`, the last commit that changed the note) |
 | Decision | Approved as written |
 | Date recorded | 2026-11-17 |
 | Reported by | Panhapiseth Lim, on behalf of the team (Panhapiseth Lim, Victor Akinmade) |

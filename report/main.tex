@@ -6,6 +6,8 @@
 \usepackage[hidelinks]{hyperref}
 \graphicspath{{../figures/}}
 \IfFileExists{numbers.tex}{\input{numbers.tex}}{}
+\IfFileExists{sensitivity.tex}{\input{sensitivity.tex}}{}
+\IfFileExists{partB.tex}{\input{partB.tex}}{}
 
 \begin{document}
 
@@ -18,7 +20,7 @@ lim\_p65274@utpb.edu, akinmade\_v27471@utpb.edu}}
 \maketitle
 
 \begin{abstract}
-We reproduce the main comparison of Halder, Matus and Fettweis (GLOBECOM 2024): concurrent multipath routing of entanglement requests, solved by an integer linear program (ILP) and by a greedy heuristic, against single-path routing, measured by blocking ratio. The paper leaves several model details unstated, so we rebuilt the model from the text, recorded 25 explicit assumptions, cross-checked the ILP three ways, and checked the qualitative claim in the QuNetSim packet-level simulator with real Bell-state measurements. We also test one pre-registered extension: relaxing the heuristic's capacity headroom only for requests on their last chance. We report what reproduced, what did not, and seven inconsistencies we found in the paper.
+We reproduce the main comparison of Halder, Matus and Fettweis (GLOBECOM 2024): concurrent multipath routing of entanglement requests, solved by an integer linear program (ILP) and by a greedy heuristic, against single-path routing, measured by blocking ratio. The paper leaves several model details unstated, so we rebuilt the model from the text, recorded 27 explicit assumptions, checked the ILP against hand-solved toys, brute force and a second formulation, and checked the qualitative claim in the QuNetSim packet-level simulator with real Bell-state measurements. We also test one pre-registered extension: relaxing the heuristic's capacity headroom only for requests on their last chance. We report what reproduced, what did not, and seven inconsistencies we found in the paper.
 \end{abstract}
 
 \section{Introduction}
@@ -41,7 +43,7 @@ The network is a graph $G(V,E)$. Each neighbouring pair $(i,j)$ has $M$ quantum 
 A request $r=\langle s,d,n,a,h,b,f\rangle$ needs $n$ pairs from $s$ to $d$. It arrives at slot $a$, runs for $h$ slots, has deadline $b$, and requires end-to-end fidelity $f$. It must run inside a single window. In its $i$-th eligible window it has priority $\rho=i/|W_r|$, so a request on its last chance has $\rho=1$. The blocking ratio is the share of requests never served.
 
 \subsection{Fidelity limit}
-The paper states only the resulting hop limits. Werner-state swapping reproduces both of them. With $w=(4F-1)/3$, a path of $L$ links has fidelity $F_L=(3w^L+1)/4$. For $F=0.95$, $F_5=0.781\geq0.78>F_6=0.746$, so a path may use at most 4 intermediate nodes. The same formula gives 10 intermediate nodes for $f=0.6$, which matches the paper's large setup.
+The paper states only the resulting hop limits. Werner-state swapping~\cite{briegel1998} reproduces both of them, and the authors' earlier paper uses the same formula~\cite{halder2024sr}. With $w=(4F-1)/3$, a path of $L$ links has fidelity $F_L=(3w^L+1)/4$. For $F=0.95$, $F_5=0.781\geq0.78>F_6=0.746$, so a path may use at most 4 intermediate nodes. The same formula gives 10 intermediate nodes for $f=0.6$, which matches the paper's large setup.
 
 \subsection{ILP and heuristic}
 In each window, the ILP maximises $\sum_r \rho_r X_r$ subject to these constraints:
@@ -77,14 +79,218 @@ A22 & In QuNetSim, each link has $M$ attempts per window, each succeeding with p
 \end{table}
 
 \section{Part A: Abstract-Model Reproduction}
+\subsection{Setup and correctness checks}
+We use the paper's small setup:
+\begin{itemize}
+\item a $3\times3$ grid with $|R|=60$, $M=6$, $T=100$ and $t_c=10$;
+\item $F=0.95$ and $f=0.78$;
+\item $q$ from 0.5 to 0.9.
+\end{itemize}
+Each point is the mean of 30 seeds with a 95\% confidence interval. For a given seed, every method sees the same requests and the same link outcomes, so differences between methods are paired.
+
+We compare five methods:
+\begin{itemize}
+\item SP-SPF: the lab's shortest-hop baseline.
+\item SP-Heu and MP-Heu: the heuristic without and with splitting.
+\item SP-ILP and MP-ILP.
+\end{itemize}
+The ILPs are solved with HiGHS~\cite{highs} through PuLP~\cite{pulp} on a path-based formulation, with zero optimality gap and a 60~s limit per window. That formulation gave the same optimum as the paper's arc-based one on 200 random windows. For $K=1$ we use an equivalent smaller model, checked against the general one on the same 200 windows, because the general model could not always prove the single-path optimum within the limit. Across all \ilpRuns{} ILP runs, \ilpTimeLimitWindows{} windows stopped at the time limit, so every ILP result here is a proven optimum.
+
+Before trusting any curve, we checked the code against answers fixed in advance:
+\begin{itemize}
+\item Two toy networks, solved by hand and committed before any solver code existed. In the first, a request can only be served by splitting. In the second, the fidelity limit rules out the long route. In both, the heuristic scores strictly below the ILP.
+\item The paper's own Fig.~1 example, which our heuristic reproduces path for path.
+\item Brute-force enumeration on small windows.
+\item The ordering heuristic $\le$ ILP-$\delta$ $\le$ ILP in every window, for both the multipath and the single-path versions, and SP-ILP $\le$ MP-ILP. ILP-$\delta$ is the ILP with the heuristic's cap of $\lfloor C_e/\delta\rfloor$ pairs per request and link. The audit replays all 30 seeds at every $q$ along MP-Heu's run. Across its \auditWindows{} windows there were \auditViolations{} violations and \auditInconclusive{} time-limited solves.
+\item Deliberately planted bugs, which the test suite must catch, and does.
+\end{itemize}
+
+Demand $n$ was calibrated first (A1). Each candidate range was scored only on MP-Heu $\Gamma$ against the paper's Table~I. The first grid of ranges was widened once, before any blocking ratio existed, and the range \nChoice{} fit best (RMSE \gammaRMSE). The fit is loose: our $\Gamma$ falls faster with $q$ than the paper's (Table~\ref{tab:paper}). Blocking ratio and MP-ILP $\Gamma$ were never looked at during calibration, so they are held-out checks.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{F1_partA_blocking.pdf}
+\caption{Blocking ratio, mean and 95\% CI over 30 paired seeds. Left: against link success probability $q$, with the two values the paper prints for $q=0.9$. Right: against the number of requests at $q=0.7$. ILP solid, heuristic dashed.}
+\label{fig:f1}
+\end{figure*}
+
+\subsection{What reproduced}
+\textbf{Multipath blocks fewer requests than single path.} This holds for both pairs at every $q$ (Fig.~\ref{fig:f1}, left). At $q=0.5$:
+\begin{itemize}
+\item the heuristics block \brMPHeuqFive{} (MP) against \brSPHeuqFive{} (SP);
+\item the ILPs block \brMPILPqFive{} (MP) against \brSPILPqFive{} (SP).
+\end{itemize}
+It also holds at every load (Fig.~\ref{fig:f1}, right). At $|R|=100$, MP-Heu blocks \brMPHeuRHundred{} and SP-Heu \brSPHeuRHundred.
+
+\textbf{The other trends match too:}
+\begin{itemize}
+\item Blocking falls as $q$ rises and grows with load.
+\item The ILPs are slower than the heuristics, and MP-ILP is the slowest.
+\item MP-Heu's share of split requests falls as $q$ rises (Fig.~\ref{fig:f2}). This is weak evidence, because $\Gamma$ was the calibration target.
+\end{itemize}
+SP-SPF and SP-Heu are almost identical, so the heuristic's path choice matters much less than its ability to split.
+
+\subsection{What did not reproduce}
+\textbf{Absolute levels.} At $q=0.9$ the paper prints 0.27 for MP-ILP and 0.42 for SP-ILP. Our ILPs block \brMPILPqNine{} and \brSPILPqNine. Our network is much less loaded than the paper's under the same printed parameters. Section~\ref{sec:sens} tests two readings of the request model that could explain this.
+
+\textbf{Heuristic against ILP.} The paper calls the two comparable. Ours are far apart at low $q$: MP-Heu blocks \brMPHeuqFive{} and MP-ILP \brMPILPqFive. Two diagnostics locate the gap at $q=0.5$:
+\begin{itemize}
+\item ILP-$\delta$, an optimal solver that must keep the heuristic's headroom, blocks \brMPILPDeltaqFive.
+\item The heuristic with $\delta=1$, still greedy but without headroom, blocks \brMPHeuDoneqFive.
+\end{itemize}
+Each costs little on its own. Together they cost far more, so the headroom rule hurts the greedy placer much more than it hurts an optimal one. This finding led to our extension.
+
+\textbf{$\Gamma$ of the ILP.} This was held out. Ours falls from \gammaMPILPqFive{} to \gammaMPILPqNine{} over the range of $q$. The paper's falls from \paperGammaMPILPqFive{} to \paperGammaMPILPqNine. One caution applies: the ILP's objective counts served requests, not paths, so many optimal solutions differ only in how often they split. $\Gamma$ of an ILP therefore depends on which optimum the solver returns, and the paper does not say how it chose.
+
+\textbf{Compute time.} Per run (all ten windows), our heuristics take under 0.1~s, our SP-ILP about \runtimeSPILPqFive~s, and our MP-ILP \runtimeMPILPqFive--\runtimeMPILPqEight~s. The paper reports \paperTimeSPILPqNine--\paperTimeSPILPqFive~s for SP-ILP and \paperTimeMPILPqNine--\paperTimeMPILPqFive~s for MP-ILP, with CPLEX. The ordering matches: heuristic fastest, then SP-ILP, then MP-ILP. Our absolute times are far lower, but solver, formulation and hardware all differ, so they are not comparable.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{F2_partA_gamma.pdf}
+\caption{Share of served requests that used more than one path ($\Gamma$). MP-Heu was the calibration target. MP-ILP is held out. Open markers are the values in the paper's Table~I.}
+\label{fig:f2}
+\end{figure}
+
+\begin{table}[t]
+\caption{Values the paper prints, against ours}
+\label{tab:paper}
+\centering\small
+\begin{tabular}{@{}lccl@{}}
+\toprule
+Quantity & Paper & Ours & Role \\
+\midrule
+BR, MP-ILP, $q=0.9$ & \paperBRMPILPqNine & \brMPILPqNine & held out \\
+BR, SP-ILP, $q=0.9$ & \paperBRSPILPqNine & \brSPILPqNine & held out \\
+$\Gamma$, MP-Heu, $q=0.5$ & \paperGammaMPHeuqFive & \gammaMPHeuqFive & calibrated \\
+$\Gamma$, MP-Heu, $q=0.9$ & \paperGammaMPHeuqNine & \gammaMPHeuqNine & calibrated \\
+$\Gamma$, MP-ILP, $q=0.5$ & \paperGammaMPILPqFive & \gammaMPILPqFive & held out \\
+$\Gamma$, MP-ILP, $q=0.9$ & \paperGammaMPILPqNine & \gammaMPILPqNine & held out \\
+Time (s), SP-ILP, $q=0.5$ & \paperTimeSPILPqFive & \runtimeSPILPqFive & other solver \\
+Time (s), MP-ILP, $q=0.5$ & \paperTimeMPILPqFive & \runtimeMPILPqFive & other solver \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Why are our blocking levels lower?}\label{sec:sens}
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{F3_partB_success.pdf}
+\caption{Part B in QuNetSim: request success rate, mean and 95\% CI over 20 seeds. (a) Two-branch network with the exact binomial prediction (thin black). (b) $3\times3$ grid with four requests per window competing for the same links.}
+\label{fig:f3}
+\end{figure*}
+Two readings of the request model would load the network more:
+\begin{itemize}
+\item \textbf{Gaps (A3).} The Poisson draws are gaps between arrivals, not arrival slots. Arrivals then drift late, and requests that cannot finish before $T$ never enter the network. We count those as blocked.
+\item \textbf{Per slot (A27).} A request needs $n$ pairs in each of its $h$ slots, so $n h$ pairs in its window.
+\end{itemize}
+After Part A was frozen, we reran the four methods under each reading and under both together, with the same \sensSeeds{} seeds (Table~\ref{tab:sens}).
+
+\textbf{Per slot fits the paper's levels.} At $q=0.9$, MP-ILP blocks \sensBRPerSlotMPILPqNine{} and SP-ILP \sensBRPerSlotSPILPqNine, against the paper's \paperBRMPILPqNine{} and \paperBRSPILPqNine. The gap between them is also similar.
+
+\textbf{Gaps does not.} It lifts every method to about the same level at $q=0.9$ (MP-ILP \sensBRGapsMPILPqNine, SP-ILP \sensBRGapsSPILPqNine). The extra blocked requests are those that never arrive before $T$, and no routing can serve them.
+
+\textbf{Conclusions.}
+\begin{itemize}
+\item The per-slot reading is the more plausible explanation of the level gap. We cannot confirm it without the authors' code.
+\item Under every reading, multipath blocks no more than single path on average, at both $q$ values tested.
+\item Even under the per-slot reading, our heuristic stays far from our ILP (MP-Heu \sensBRPerSlotMPHeuqNine{} at $q=0.9$). That gap remains unexplained.
+\item Our headline results keep the reading we fixed before seeing any blocking ratio.
+\end{itemize}
+
+\begin{table}[t]
+\caption{Blocking ratio at $q=0.9$ under other readings of the request model (\sensSeeds{} seeds, held out)}
+\label{tab:sens}
+\centering\small
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Reading & SP-ILP & MP-ILP & MP-Heu \\
+\midrule
+Ours (per window, direct arrivals) & \brSPILPqNine & \brMPILPqNine & \brMPHeuqNine \\
+Gaps & \sensBRGapsSPILPqNine & \sensBRGapsMPILPqNine & \sensBRGapsMPHeuqNine \\
+Per slot & \sensBRPerSlotSPILPqNine & \sensBRPerSlotMPILPqNine & \sensBRPerSlotMPHeuqNine \\
+Gaps and per slot & \sensBRGapsPerSlotSPILPqNine & \sensBRGapsPerSlotMPILPqNine & \sensBRGapsPerSlotMPHeuqNine \\
+Paper (printed) & \paperBRSPILPqNine & \paperBRMPILPqNine & n/a \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \section{Part B: QuNetSim Check}
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{F4_partC_extension.pdf}
+\caption{Extension. Left: blocking ratio against $q$ for the heuristic with $\delta=2$ (the paper), $\delta=1$ and deadline-aware $\delta$, with MP-ILP and ILP-$\delta$ for reference. Right: paired difference BR(MP-Heu) $-$ BR(deadline-aware) with 95\% CI. The dashed line is the pre-registered threshold.}
+\label{fig:f4}
+\end{figure*}
+\subsection{Setup}
+We use QuNetSim 0.1.3 with entanglement swapping enabled, on three networks:
+\begin{itemize}
+\item a chain A--B--C, as a sanity check;
+\item a two-branch network, with routes S--a1--a2--D and S--b1--b2--D;
+\item a $3\times3$ grid.
+\end{itemize}
+
+Every end-to-end pair is built hop by hop with real QuNetSim calls:
+\begin{itemize}
+\item \texttt{send\_epr} creates a pair on each link;
+\item each middle node makes a Bell measurement (CNOT, Hadamard, two measurements);
+\item the node sends two classical bits to the destination, which applies the X and Z corrections.
+\end{itemize}
+Both ends then measure in Z or X. All \pbCorrelated{} of the \pbDelivered{} delivered pairs gave matching outcomes.
+
+\textbf{Link failure.} QuNetSim's own loss settings never affect EPR pairs, and injecting a failure inside its swap crashed it. We therefore give each link $M$ attempts per window, each landing with probability $q$ (A22). The attempts are shared by every request and path that uses the link, so multipath gets no extra attempts, only more of the network.
+
+\textbf{Routing.} Single path uses QuNetSim's default router (a shortest path). Multipath uses $k=2$ link-disjoint paths and splits the pairs evenly. Requests are served one after another, because concurrent sends between the same hosts mix up their qubits (QuNetSim issue 170). A request succeeds only if all $n$ pairs arrive before a link on their route runs out of attempts. Each setting uses \pbSeeds{} seeds, with the same dice for single path and multipath.
+
+
+\subsection{Results}
+\textbf{The wiring is right.} On the chain at $q=1$ every request succeeds. On the chain and the two-branch network, success has a closed form: a link that must carry $m$ pairs needs at least $m$ landings in $M$ attempts, which is a binomial tail. In \pbAnalyticInside{} of \pbAnalyticTotal{} settings, the exact value lies inside the 95\% Wilson interval of the simulated rate (Fig.~\ref{fig:f3}a).
+
+\textbf{Multipath succeeds more often.}
+\begin{itemize}
+\item \textbf{Two-branch network.} With $n=4$ at $q=0.9$, multipath succeeds in \pbTwoBranchMPnFourqNine{} of requests and single path in \pbTwoBranchSPnFourqNine. Paired by seed, multipath did better in \pbBetterTwo{} of \pbRunsTwo{} runs and worse in \pbWorseTwo. The other runs were ties, mostly where both methods always succeeded or always failed.
+\item \textbf{Grid.} Competing requests shrink the margin. At $q=0.5$ the success rates are \pbThreeGridMPnVarqFive{} against \pbThreeGridSPnVarqFive, and multipath did better in \pbBetterThree{} of \pbRunsThree{} runs and worse in \pbWorseThree.
+\item \textbf{A third path} ($k=3$) adds nothing measurable on the grid: \pbThreeKGridMPnVarqFive{} at $q=0.5$.
+\end{itemize}
+
+\textbf{The price.} Multipath uses more attempts per request: \pbattThreeGridMPnVarqFive{} against \pbattThreeGridSPnVarqFive{} on the grid at $q=0.5$. Pairs on a path that fails part-way are wasted.
+
+\subsection{How Part B differs from Part A}
+The ranking matches Part A, but the numbers are not comparable, for four reasons:
+\begin{itemize}
+\item \textbf{Hidden outcomes.} In Part A the planner knows every link's capacity before it routes. In Part B the routes are fixed first, and a request can fail part-way after spending attempts.
+\item \textbf{No optimisation.} Part B has no ILP and no priority $\rho$: requests are served in arrival order.
+\item \textbf{Retries.} A failed attempt is retried while the link has attempts left, so the budget acts as a shared pool rather than a fixed number of seats.
+\item \textbf{No fidelity.} QuNetSim does not model fidelity for these pairs, so only the hop limit carries over.
+\end{itemize}
 
 \section{Extension: Deadline-Aware Headroom}
+\textbf{Idea.} The heuristic always keeps headroom: one request may take at most half of a link's pairs ($\delta=2$). The ILP has no such rule. Our variant keeps the headroom except when a request is on its last chance ($\rho=1$), where it uses $\delta=1$. Whether this helps was uncertain in advance. Taking more pairs for one request can block requests placed after it in the same window.
+
+\textbf{Hypothesis and rule (fixed in the scope note before any run).} On the small setup at $q=0.5$, deadline-aware $\delta$ lowers MP-Heu's blocking ratio by at least 3 percentage points. The hypothesis counts as supported if the paired mean difference is at least \extThreshold{} and the lower bound of its 95\% CI is above zero. We also report $\delta=1$ for every request, which tells us whether the deadline condition is what matters.
+
+\textbf{Result.} The hypothesis is \extVerdict. At $q=0.5$, the paired difference is \extDiffqFive{} (95\% CI \extCIloqFive{} to \extCIhiqFive) over 30 seeds. Measured as a ratio of means, the variant closes \extGapDeadqFive{} of the gap between MP-Heu and MP-ILP (Fig.~\ref{fig:f4}).
+
+\textbf{Interpretation.} Using $\delta=1$ for every request does better still. Its difference is \extDoneDiffqFive{} and it closes \extGapDoneqFive{} of the gap. At every $q$, $\delta=1$ is at least as good as the deadline-aware rule. So in this model it is not deadline awareness that helps: the headroom rule itself is the cost. One likely reason, which we did not test separately: headroom saves pairs for requests placed later in the same window, but requests are placed in priority order and capacity resets every window, so the saved pairs mostly go unused. The supported hypothesis is therefore a weaker finding than it first looks. Our recommendation is to drop the headroom rule rather than relax it near deadlines. This should be retested under a model where pairs survive across windows.
+
 
 \section{Limitations}
+\begin{itemize}
+\item \textbf{The abstract model is a simplification.} Swapping always succeeds, every pair is discarded at the end of its window, memories do not decay within a window, and fidelity enters only as a hop limit. Real repeaters violate all four.
+\item \textbf{The QuNetSim results are a qualitative check, not real hardware.} QuNetSim models no noise, decoherence or timing for EPR pairs. Link failure comes from our own attempt budget (A22), and fidelity is not measured. Part B shows only that the ranking of single path and multipath survives in a packet-level simulator with real Bell-state measurements.
+\item \textbf{The results depend on the parameters we chose.} The paper does not give the demand $n$, the number of paths $K$, or the exact arrival model. We calibrated $n$ on a single quantity, and another reading of the request model gives blocking levels close to the paper's (Section~\ref{sec:sens}).
+\item \textbf{The fidelity model is inferred.} Werner-state swapping reproduces both hop limits the paper prints, but the paper never names its model.
+\item \textbf{Scope.} We ran only the small setup. We did not run the paper's large $5\times5$ setup, which it solves with heuristics only.
+\end{itemize}
 
 \section*{AI-Use Statement}
+We used Claude (Anthropic), through Claude Code, as a programming and writing assistant. It helped to:
+\begin{itemize}
+\item survey the QuNetSim source and the related literature;
+\item draft code, tests and documents to our specifications;
+\item run experiments;
+\item review our work critically.
+\end{itemize}
+Every assumption, result and figure was checked against tests or hand-worked answers before we used it. The toy answers were fixed before any solver code existed. \texttt{AI\_LOG.md} lists each request and what we kept, changed or rejected. One rejected example is the first extension idea, which a review showed was true by construction. We take responsibility for all content and can explain every line.
 
 \begin{thebibliography}{9}
 \bibitem{halder2024} J.~Halder, E.~Matus, and G.~Fettweis, ``On the concurrent multipath entanglement distribution in quantum networks,'' in \emph{Proc. IEEE GLOBECOM}, 2024, pp.~2791--2796.

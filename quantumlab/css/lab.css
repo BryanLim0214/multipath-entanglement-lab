@@ -167,6 +167,8 @@ button.node-label { pointer-events: auto; cursor: pointer; min-height: 24px; bor
 button.node-label:hover { background: var(--rule); }
 .node-label.is-picked { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 .link-label { font-family: var(--font-mono); font-size: 14px; color: var(--ink); background: var(--paper); padding: 0 4px; line-height: 20px; }
+.node-label.is-tight { font-size: 12px; padding: 0 2px; line-height: 18px; }
+.link-label.is-small { font-size: 12px; line-height: 16px; padding: 0 2px; }
 .link-label.is-note { font-family: var(--font-text); color: var(--muted); }
 .stage-fallback { padding: 24px; }
 .stage-hint { font-size: 14px; color: var(--muted); margin: 8px 0 0; }
@@ -250,6 +252,31 @@ tr.is-mismatch td { color: var(--warn); font-weight: 700; }
 .referee { margin: 0 0 16px; padding-left: 24px; }
 .referee li { margin-bottom: 4px; }
 
+/* Arena and chapter 6 */
+.lab.is-arena { grid-template-columns: minmax(0, 48ch) minmax(0, 1fr); }
+.lab.is-wide { grid-template-columns: minmax(0, 1fr); }
+.lab.is-wide .chart { min-width: 520px; max-width: 640px; }
+.lab.is-wide .table-scroll table { max-width: none; }
+.lab.is-arena .stage { height: 380px; }
+.arena-pickers { display: flex; flex-wrap: wrap; gap: 0 24px; }
+select { font: inherit; min-height: 40px; padding: 4px 8px; border: 1px solid var(--ink); border-radius: 2px; background: var(--paper); color: var(--ink); max-width: 100%; }
+.scroll-y { max-height: 320px; overflow-y: auto; margin: 0 0 16px; }
+.scroll-y table { margin: 0; }
+.table-scroll td.num, .table-scroll th.num { white-space: nowrap; }
+td.is-blocked { color: var(--fail); font-weight: 700; }
+tr.is-selected { background: var(--rule); }
+.stage-title { font-size: 14px; font-weight: 700; color: var(--ink); background: var(--paper); padding: 0 4px; line-height: 24px; }
+.arena-controls table { max-width: none; }
+.chart .line { fill: none; stroke-width: 2; }
+.chart .line-sp, .chart .bar-sp { stroke: var(--sp); }
+.chart .line-mp, .chart .bar-mp { stroke: var(--mp); }
+.chart .dashed { stroke-dasharray: 6 4; }
+.chart .bar { stroke-width: 1.5; }
+.chart .dot-sp { fill: var(--sp); }
+.chart .dot-mp { fill: var(--mp); }
+.chart .paper-dot { fill: var(--paper); stroke: var(--ink); stroke-width: 2; }
+.swatch-sp { background: var(--sp); border-color: var(--sp); }
+
 /* Step list for the Fig. 1 debugger */
 .step-count { font-family: var(--font-mono); font-size: 14px; color: var(--muted); }
 .alpha-list { list-style: none; padding: 0; margin: 0 0 16px; }
@@ -269,6 +296,12 @@ tr.is-mismatch td { color: var(--warn); font-weight: 700; }
   .lab { grid-template-columns: minmax(0, 1fr); gap: 24px; }
   .stage-col { position: static; max-height: none; overflow-y: visible; }
   .stage { height: 320px; }
+  .lab.is-arena, .lab.is-wide { grid-template-columns: minmax(0, 1fr); }
+  .lab.is-arena .stage { height: 640px; }
+  .lab.is-arena .narrative { display: contents; }
+  .lab.is-arena .narrative > * { order: 2; }
+  .lab.is-arena .narrative > .chapter-head { order: 0; }
+  .lab.is-arena .stage-col { order: 1; }
   .readout { font-size: 16px; }
 }
 

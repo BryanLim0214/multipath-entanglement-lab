@@ -1,7 +1,7 @@
-"""Exports the data QuantumLab shows: the Fig. 1 walk, the Rush hour instances and the fidelity limits.
+"""Exports the data QuantumLab shows: the Fig. 1 walk, Rush hour, the fidelity limits and the Arena replays.
 
-It runs the real engine in src/qmp, so the browser can never disagree with the experiments.
-Usage: .venv\\Scripts\\python.exe quantumlab\\tools\\export_data.py
+It runs the real engine in src/qmp (single process, heuristics only), so the browser can never disagree
+with the experiments. Usage: .venv\\Scripts\\python.exe quantumlab\\tools\\export_data.py
 """
 from __future__ import annotations
 
@@ -12,14 +12,20 @@ import json
 import subprocess
 import sys
 from fractions import Fraction
+from functools import partial
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
+import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT))
 
-from qmp import fidelity, heuristic, ilp  # noqa: E402
+from experiments.common import calibrated_n_spec  # noqa: E402
+from experiments.methods import METHODS  # noqa: E402
+from qmp import fidelity, heuristic, ilp, model, sim, stats  # noqa: E402
 from qmp.core import Request, WindowInput, edge, path_edges, validate  # noqa: E402
 from qmp.model import fig1_graph, grid  # noqa: E402
 
@@ -195,13 +201,158 @@ def fidelity_data() -> dict:
     return {"meta": meta(), "link_fidelity": FIDELITY_F, "limits": limits, "table": table}
 
 
+# ---- Arena: replay data -------------------------------------------------------------------------
+RESULTS = ROOT / "results"
+ARENA_Q = [0.5, 0.7, 0.9]
+ARENA_SEEDS = [0, 1, 2]
+TRACE_METHODS = ["SP-SPF", "SP-Heu", "MP-Heu", "SP-ILP", "MP-ILP"]
+SMALL = {"rows": 3, "cols": 3, "R": 60, "M": 6, "T": 100, "tc": 10, "F": FIDELITY_F, "f": 0.78}
+# A5: with F = 0.95 a requirement of f = 0.6 allows 10 middle cities, and a 3x3 grid has at most 7
+# (a path through all 9 cities), so the fidelity limit can never bind. This is "hop limit off".
+F_HOP_OFF = 0.6
+ARENA_SOURCE_FUNCTIONS = [sim.simulate, sim.to_trace, sim.check_legal, model.make_requests, model.sample_capacity,
+                          model.windows, heuristic.place_heuristic, heuristic.choose_split, stats.mean_ci,
+                          stats.paired_diff_ci]
+
+
+def file_sha256(path: Path) -> str:
+    """sha256 of one input file's bytes."""
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def traces_sha256() -> str:
+    """One hash over every Part A trace the Arena reads (names and bytes, in sorted order)."""
+    digest = hashlib.sha256()
+    for path in sorted((RESULTS / "traces").glob("partA_*.json")):
+        digest.update(path.name.encode("utf-8"))
+        digest.update(path.read_bytes())
+    return digest.hexdigest()
+
+
+def arena_meta() -> dict:
+    """Engine stamp plus the hashes of the result files and functions the Arena data comes from."""
+    source = "\n".join(inspect.getsource(f) for f in ARENA_SOURCE_FUNCTIONS)
+    return {**meta(), "arena_source_sha256": hashlib.sha256(source.encode("utf-8")).hexdigest(),
+            "inputs": {"traces_sha256": traces_sha256(),
+                       "partA_small_csv_sha256": file_sha256(RESULTS / "partA_small.csv"),
+                       "paper_values_sha256": file_sha256(ROOT / "data" / "paper_values.yaml"),
+                       "calibration_choice_sha256": file_sha256(RESULTS / "calibration_choice.yaml")}}
+
+
+def variant_name(multipath: bool, spare: bool, hop: bool) -> str:
+    """MP-Heu or SP-Heu, then -d1 when the spare-seat rule is off, then -nohop when the hop limit is off."""
+    return ("MP" if multipath else "SP") + "-Heu" + ("" if spare else "-d1") + ("" if hop else "-nohop")
+
+
+def heuristic_variants() -> dict[str, dict]:
+    """All eight on/off combinations of splitting, the spare-seat rule and the hop limit (heuristic only)."""
+    out = {}
+    for multipath in (True, False):
+        for spare in (True, False):
+            for hop in (True, False):
+                base = variant_name(multipath, spare, True)
+                placer = METHODS.get(base) or partial(heuristic.place_heuristic, multipath=multipath,
+                                                      delta=2 if spare else 1)  # A21: delta 2 is the spare-seat rule
+                out[variant_name(multipath, spare, hop)] = {"placer": placer, "f": SMALL["f"] if hop else F_HOP_OFF}
+    return out
+
+
+def arena_config(q: float, seed: int, f: float) -> sim.SimConfig:
+    """The Part A small-setup config, with the n_spec the experiments used."""
+    return sim.SimConfig(SMALL["rows"], SMALL["cols"], SMALL["R"], SMALL["M"], SMALL["T"], SMALL["tc"], q,
+                         SMALL["F"], f, calibrated_n_spec(), seed)
+
+
+def committed_trace(method: str, q: float, seed: int) -> dict:
+    """A Part A trace file exactly as the experiments wrote it."""
+    path = RESULTS / "traces" / f"partA_{method}_q{q}_s{seed}.json"
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def simulated_trace(name: str, q: float, seed: int) -> dict:
+    """Run one heuristic variant for one seed and return its trace (single process)."""
+    variant = heuristic_variants()[name]
+    cfg = arena_config(q, seed, variant["f"])
+    return sim.to_trace(sim.simulate(cfg, variant["placer"]), cfg)
+
+
+def compact_trace(trace: dict) -> dict:
+    """Keep what the replay needs per window (eligible and allocations) plus the totals. Numbers are untouched."""
+    return {"windows": [{"eligible": w["eligible"], "allocations": w["allocations"]} for w in trace["windows"]],
+            "never_placed": trace["never_placed"], "blocking_ratio": trace["blocking_ratio"]}
+
+
+def request_rows(trace: dict) -> list[list[int]]:
+    """Requests as [id, s, d, n, a, h, b] rows (the fidelity requirement f is stored once in config)."""
+    return [[r["id"], r["s"], r["d"], r["n"], r["a"], r["h"], r["b"]] for r in trace["requests"]]
+
+
+def shared_inputs(traces: dict[str, dict]) -> tuple[list, list]:
+    """Requests and per-window seats, which must be identical in every trace of one (q, seed) (A19)."""
+    first = next(iter(traces.values()))
+    capacity = [w["capacity"] for w in first["windows"]]
+    requests = request_rows(first)
+    for name, trace in traces.items():
+        assert [w["capacity"] for w in trace["windows"]] == capacity, name
+        assert request_rows(trace) == requests, name
+    return requests, capacity
+
+
+def arena_runs() -> dict:
+    """Every (q, seed) run: five committed traces plus the heuristic variants, keyed "q/seed"."""
+    runs = {}
+    for q in ARENA_Q:
+        for seed in ARENA_SEEDS:
+            traces = {m: committed_trace(m, q, seed) for m in TRACE_METHODS}
+            for name in heuristic_variants():
+                if name not in traces:
+                    traces[name] = simulated_trace(name, q, seed)
+            requests, capacity = shared_inputs(traces)
+            runs[f"{q}/{seed}"] = {"requests": requests, "capacity": capacity,
+                                   "traces": {name: compact_trace(t) for name, t in sorted(traces.items())}}
+    return runs
+
+
+def arena_summary() -> dict:
+    """30-seed mean and 95% CI of the blocking ratio per method and q, and paired differences (A19)."""
+    table = pd.read_csv(RESULTS / "partA_small.csv").sort_values(["method", "q", "seed"])
+    blocking, paired = {}, {}
+    for q in sorted(table["q"].unique()):
+        rows = {m: table[(table["method"] == m) & (table["q"] == q)]["blocking_ratio"].to_numpy()
+                for m in TRACE_METHODS}
+        blocking[str(q)] = {m: {**dict(zip(("mean", "ci"), stats.mean_ci(v))), "n": len(v)} for m, v in rows.items()}
+        paired[str(q)] = {pair: dict(zip(("mean", "ci"), stats.paired_diff_ci(rows[f"SP-{pair}"], rows[f"MP-{pair}"])))
+                          for pair in ("Heu", "ILP")}
+    return {"blocking_ratio": blocking, "single_minus_multi": paired}
+
+
+def paper_blocking() -> dict:
+    """Blocking ratios the paper prints in the text for the small setup at q = 0.9 (A20)."""
+    values = yaml.safe_load((ROOT / "data" / "paper_values.yaml").read_text(encoding="utf-8"))
+    return values["small"]["blocking_ratio_at_q09"]
+
+
+def arena_data() -> dict:
+    """The whole arena.json content."""
+    assert fidelity.max_intermediate(SMALL["F"], F_HOP_OFF) >= SMALL["rows"] * SMALL["cols"] - 2
+    return {"meta": arena_meta(),
+            "config": {**SMALL, "n_spec": calibrated_n_spec(), "f_hop_off": F_HOP_OFF, "spare_seat_delta": 2,
+                       "max_middle_on": fidelity.max_intermediate(SMALL["F"], SMALL["f"]),
+                       "max_middle_off": fidelity.max_intermediate(SMALL["F"], F_HOP_OFF)},
+            "q_values": ARENA_Q, "seeds": ARENA_SEEDS, "trace_methods": TRACE_METHODS,
+            "runs": arena_runs(), "summary": arena_summary(), "paper": paper_blocking()}
+
+
 def build_all() -> dict:
     """Every exported file by name. The test re-runs this and compares with the committed files."""
-    return {"fig1_steps.json": fig1_steps(), "rushhour.json": rushhour(), "fidelity.json": fidelity_data()}
+    return {"fig1_steps.json": fig1_steps(), "rushhour.json": rushhour(), "fidelity.json": fidelity_data(),
+            "arena.json": arena_data()}
 
 
 if __name__ == "__main__":
     DATA.mkdir(exist_ok=True)
     for file_name, content in build_all().items():
-        (DATA / file_name).write_text(json.dumps(content, indent=2) + "\n", encoding="utf-8")
+        compact = file_name == "arena.json"  # the replay data is large, so it is written without indentation
+        text = json.dumps(content, separators=(",", ":")) if compact else json.dumps(content, indent=2)
+        (DATA / file_name).write_text(text + "\n", encoding="utf-8")
         print("wrote", DATA / file_name)

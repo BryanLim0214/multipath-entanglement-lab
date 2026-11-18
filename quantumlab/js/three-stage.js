@@ -13,6 +13,7 @@ const BEAD_RADIUS = 0.13;
 const MARKER_SIZE = 0.3;
 const FOV = 40;
 const VIEW_DIRECTION = new THREE.Vector3(0, -0.45, 0.9).normalize();
+const TOP_VIEW_DIRECTION = new THREE.Vector3(0, -0.04, 1).normalize(); // nearly straight down, so rows are not squashed
 
 /**
  * Read a color token (such as "mp") from the page's CSS, or pass a "#rrggbb" value straight through.
@@ -113,7 +114,7 @@ export function createStage(host) {
 
   let content = new THREE.Group();
   scene.add(content);
-  const state = { nodes: new Map(), markers: new Map(), labelItems: [], lastSpec: null, fitKey: "" };
+  const state = { nodes: new Map(), markers: new Map(), labelItems: [], lastSpec: null, fitKey: "", view: VIEW_DIRECTION };
 
   /** Move every HTML label to where its 3D point is on screen. */
   function placeLabels() {
@@ -123,7 +124,8 @@ export function createStage(host) {
       const p = item.point.clone().project(camera);
       const x = (p.x * 0.5 + 0.5) * w;
       const y = (-p.y * 0.5 + 0.5) * h;
-      item.el.style.transform = `translate(calc(${x.toFixed(1)}px - 50%), ${y.toFixed(1)}px)`;
+      const down = item.center ? "calc(" + y.toFixed(1) + "px - 50%)" : `${y.toFixed(1)}px`;
+      item.el.style.transform = `translate(calc(${x.toFixed(1)}px - 50%), ${down})`;
     }
   }
 
@@ -136,20 +138,21 @@ export function createStage(host) {
   /**
    * Point the camera at the nodes so all of them fit.
    * @param {{x: number, y: number}[]} nodes Node positions.
+   * @param {number} [pad] Extra scene units kept free around the nodes.
    * @returns {void}
    */
-  function fitCamera(nodes) {
+  function fitCamera(nodes, pad = 1.3) {
     if (nodes.length === 0) {
       return;
     }
     const xs = nodes.map((n) => n.x);
     const ys = nodes.map((n) => n.y);
-    const halfW = (Math.max(...xs) - Math.min(...xs)) / 2 + 1.3;
-    const halfH = (Math.max(...ys) - Math.min(...ys)) / 2 + 1.3;
+    const halfW = (Math.max(...xs) - Math.min(...xs)) / 2 + pad;
+    const halfH = (Math.max(...ys) - Math.min(...ys)) / 2 + pad;
     const center = new THREE.Vector3((Math.max(...xs) + Math.min(...xs)) / 2, (Math.max(...ys) + Math.min(...ys)) / 2, 0);
     const need = Math.max(halfH / 0.9, halfW / camera.aspect) / Math.tan((FOV * Math.PI) / 360);
     controls.target.copy(center);
-    camera.position.copy(center).addScaledVector(VIEW_DIRECTION, need);
+    camera.position.copy(center).addScaledVector(state.view, need);
     camera.lookAt(center);
     controls.update();
   }
@@ -189,11 +192,12 @@ export function createStage(host) {
    * Add an HTML label that follows a 3D point.
    * @param {HTMLElement} el The label element.
    * @param {THREE.Vector3} point Where it sits in the scene.
+   * @param {boolean} [center] True to centre the label on the point instead of hanging it below.
    * @returns {void}
    */
-  function addLabel(el, point) {
+  function addLabel(el, point, center = false) {
     labels.append(el);
-    state.labelItems.push({ el, point });
+    state.labelItems.push({ el, point, center });
   }
 
   /**
@@ -207,7 +211,7 @@ export function createStage(host) {
     content.add(mesh);
     state.nodes.set(n.id, mesh);
     const el = document.createElement(n.onClick ? "button" : "span");
-    el.className = `node-label${n.picked ? " is-picked" : ""}`;
+    el.className = `node-label${n.picked ? " is-picked" : ""}${n.onNode ? " is-tight" : ""}`;
     el.textContent = n.label ?? String(n.id);
     if (n.onClick) {
       el.type = "button";
@@ -223,12 +227,16 @@ export function createStage(host) {
       el.tabIndex = -1;
       el.setAttribute("aria-hidden", "true");
     }
-    addLabel(el, new THREE.Vector3(n.x, n.y - NODE_RADIUS - 0.55, 0));
+    if (n.onNode) {
+      addLabel(el, new THREE.Vector3(n.x, n.y, NODE_RADIUS), true); // tag sits on the sphere, away from every link label
+    } else {
+      addLabel(el, new THREE.Vector3(n.x, n.y - NODE_RADIUS - 0.55, 0));
+    }
   }
 
   /**
    * Build a link: a tube (radius proportional to seats), optional beads, and an optional label.
-   * @param {object} l Link spec: from, to, seats, color, beads, beadColor, arc, lift, label, note.
+   * @param {object} l Link spec: from, to, seats, color, beads, beadColor, arc, lift, label, note, labelShift (scene x and y offset of the label).
    * @param {Map<*, object>} nodeSpecs Node specs by id.
    * @returns {void}
    */
@@ -253,10 +261,11 @@ export function createStage(host) {
     }
     if (l.label) {
       const el = document.createElement("span");
-      el.className = `link-label${l.note ? " is-note" : ""}`;
+      el.className = `link-label${l.note ? " is-note" : ""}${l.small ? " is-small" : ""}`;
       el.textContent = l.label;
       const mid = curve.getPoint(0.5);
-      addLabel(el, mid.add(new THREE.Vector3(0, l.note ? 0.4 : 0.55, radius)));
+      const shift = l.labelShift || { x: 0, y: l.note ? 0.4 : 0.55 };
+      addLabel(el, mid.add(new THREE.Vector3(shift.x, shift.y, radius)));
     }
   }
 
@@ -273,22 +282,36 @@ export function createStage(host) {
   }
 
   /**
+   * Add a plain text title at a scene position (used by the Arena to name each network).
+   * @param {{x: number, y: number, text: string}} c Caption spec.
+   * @returns {void}
+   */
+  function addCaption(c) {
+    const el = document.createElement("span");
+    el.className = "stage-title";
+    el.textContent = c.text;
+    addLabel(el, new THREE.Vector3(c.x, c.y, 0));
+  }
+
+  /**
    * Draw a whole picture, replacing the old one.
-   * @param {{nodes: object[], links?: object[], markers?: object[], fit?: boolean}} spec The picture.
+   * @param {{nodes: object[], links?: object[], markers?: object[], captions?: object[], pad?: number, view?: string}} spec The picture (pad is the free margin round the nodes, default 1.3; view "top" looks straight down). Node flag onNode puts the tag on the sphere; link flag small makes the label smaller.
    * @returns {void}
    */
   function show(spec) {
     state.lastSpec = spec;
+    state.view = spec.view === "top" ? TOP_VIEW_DIRECTION : VIEW_DIRECTION;
     disposeContent();
     scene.background = new THREE.Color(tokenColor("paper"));
     const nodeSpecs = new Map(spec.nodes.map((n) => [n.id, n]));
     (spec.links || []).forEach((l) => addLink(l, nodeSpecs));
     spec.nodes.forEach(addNode);
     (spec.markers || []).forEach(addMarker);
-    const key = spec.nodes.map((n) => `${n.id}:${n.x}:${n.y}`).join("|");
+    (spec.captions || []).forEach(addCaption);
+    const key = spec.nodes.map((n) => `${n.id}:${n.x}:${n.y}`).join("|") + (spec.view || "");
     if (key !== state.fitKey) {
       state.fitKey = key;
-      fitCamera(spec.nodes);
+      fitCamera(spec.nodes, spec.pad);
     }
     render();
   }
@@ -301,7 +324,7 @@ export function createStage(host) {
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
     if (state.lastSpec) {
-      fitCamera(state.lastSpec.nodes);
+      fitCamera(state.lastSpec.nodes, state.lastSpec.pad);
     }
     render();
   }
@@ -389,7 +412,7 @@ export function createStage(host) {
      */
     resetView() {
       if (state.lastSpec) {
-        fitCamera(state.lastSpec.nodes);
+        fitCamera(state.lastSpec.nodes, state.lastSpec.pad);
         render();
       }
     },

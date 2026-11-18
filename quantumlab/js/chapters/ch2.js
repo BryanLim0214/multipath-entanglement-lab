@@ -227,7 +227,7 @@ function mount(ctx) {
   slider.addEventListener("input", onSlide);
 
   narrative.append(
-    chapterHead("Chapter 2 of 5", "Planes and rivers",
+    chapterHead("Chapter 2 of 6", "Planes and rivers",
       "Cities are joined by roads across a river. Every round, each road throws 6 paper planes, and each plane lands with chance q."),
     caption({
       kid: "Every round, each road throws 6 paper planes across a river. Each plane lands with chance q, and a bell rings when one lands, so you know it worked.",

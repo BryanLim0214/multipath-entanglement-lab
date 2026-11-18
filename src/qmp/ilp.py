@@ -205,7 +205,53 @@ def _candidate_paths(win: WindowInput, r) -> list[list[int]]:
 
 
 def solve_path(win: WindowInput, *, K=None, delta=None, time_limit=60, solver="highs") -> PlaceResult:
-    """Same problem as solve_arc(directed_disjoint=False), with one binary per candidate path."""
+    """Same problem as solve_arc(directed_disjoint=False), with one binary per candidate path.
+    K = 1 goes to solve_single_path, an equivalent but much smaller model (A26)."""
+    if K == 1:
+        return solve_single_path(win, delta=delta, time_limit=time_limit, solver=solver)
+    return solve_path_general(win, K=K, delta=delta, time_limit=time_limit, solver=solver)
+
+
+def solve_single_path(win: WindowInput, *, delta=None, time_limit=60, solver="highs") -> PlaceResult:
+    """The K = 1 case of solve_path_general. With one path and all-or-nothing delivery, a served request puts
+    all n pairs on that path, so the pair counts are fixed (n * z) and the per-link disjointness rows (A7) are
+    implied by "at most one path". Same feasible set, far fewer integer variables. The general model hit the
+    60 s limit on some windows while proving the tie-break term; this one proves those windows in under 0.1 s.
+    tests/test_ilp_equivalence.py checks the two give the same optimum."""
+    start = time.perf_counter()
+    prob = pulp.LpProblem("single_path", pulp.LpMaximize)
+    tie = _tie_weights(win)
+    X, choice, load = {}, {}, {}
+    for r in win.requests:
+        d = _delta_of(delta, r.id)
+        cap_r = (lambda e: win.capacity.get(e, 0) // d) if d is not None else (lambda e: win.capacity.get(e, 0))
+        options = []
+        for p, nodes in enumerate(_candidate_paths(win, r)):
+            if any(r.n > cap_r(e) for e in path_edges(nodes)):
+                continue                      # the path cannot carry all n pairs (4c), or breaks the A21 cap
+            z = pulp.LpVariable(f"z_{r.id}_{p}", cat="Binary")
+            options.append((nodes, z))
+            for e in path_edges(nodes):
+                load.setdefault(e, []).append(r.n * z)
+        choice[r.id] = options
+        X[r.id] = pulp.lpSum(z for _, z in options)
+        if options:
+            prob += X[r.id] <= 1
+    if not _canary_drop_capacity:
+        for e in sorted(load):
+            prob += pulp.lpSum(load[e]) <= win.capacity.get(e, 0)   # (4c)
+    prob += pulp.lpSum((win.rho[r.id] + tie[r.id]) * X[r.id] for r in win.requests)
+
+    status = _run(prob, solver, time_limit)
+    allocs = []
+    if _usable(status, prob):
+        for r in sorted(win.requests, key=lambda q: q.id):
+            allocs += [Allocation(r.id, [(nodes, r.n)]) for nodes, z in choice[r.id] if _on(z)]
+    return PlaceResult(allocs, status, time.perf_counter() - start)
+
+
+def solve_path_general(win: WindowInput, *, K=None, delta=None, time_limit=60, solver="highs") -> PlaceResult:
+    """Path formulation for any K: one binary per candidate path, plus its integer pair count."""
     start = time.perf_counter()
     prob = pulp.LpProblem("path", pulp.LpMaximize)
     tie = _tie_weights(win)

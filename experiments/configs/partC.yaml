@@ -1,0 +1,14 @@
+# Part C extension: same small setup and seeds as Part A.
+experiment: partC
+rows: 3
+cols: 3
+R: [60]
+M: 6
+T: 100
+tc: [10]
+F: 0.95
+f: 0.78
+q: [0.5, 0.6, 0.7, 0.8, 0.9]
+n_spec: from_calibration
+seeds: 30
+methods: [MP-Heu, MP-Heu-d1, MP-Heu-deadline, MP-ILP, MP-ILP-delta, SP-Heu]

@@ -1,5 +1,5 @@
 /**
- * Entry point and router. It shows the landing page or one room (a story chapter or the Fig. 1 debugger)
+ * Entry point and router. It shows the landing page or one room (a story chapter, the Arena or the Fig. 1 debugger)
  * based on the URL hash, owns the single shared 3D stage, and wires the theme, motion and H-key controls.
  */
 import { h, storeGet, storeSet, loadJson } from "./ui.js";
@@ -12,10 +12,11 @@ const ROOMS = [
   { route: "story/3", module: "./chapters/ch3.js", title: "3 The matchmaker", task: "ch3-swap", blurb: "Join two pairs at the middle city, then phone the ends so the new pair is usable." },
   { route: "story/4", module: "./chapters/ch4.js", title: "4 Paint mixing", task: "ch4-fidelity", blurb: "Add middle cities until the pair is too washed out to use." },
   { route: "story/5", module: "./chapters/ch5.js", title: "5 Rush hour", task: "ch5-rush", blurb: "Draw roads for three requests with limited seats, then allow splitting." },
+  { route: "story/6", module: "./chapters/ch6.js", title: "6 Same dice, two plans", task: "ch6-dice", blurb: "Guess which plan blocks fewer requests, then read the paired 30-seed results next to the paper's printed values." },
+  { route: "arena", module: "./arena.js", title: "Arena", task: "arena-find", more: "arena-ablate", blurb: "Single-path and multipath networks replay the same real trace side by side. Switch off a rule and see which requests change fate." },
   { route: "fig1", module: "./fig1.js", title: "Fig. 1 debugger", task: "fig1-walk", blurb: "Step through the paper's worked example, including the one value the paper misprints." },
 ];
 const LATER = [
-  { title: "Arena", blurb: "Single-path and multipath networks replay the same real trace side by side." },
   { title: "Code Lab", blurb: "Write your own choose_paths rule and let the referee score it." },
 ];
 
@@ -101,7 +102,8 @@ function renderLanding() {
   const rooms = ROOMS.map((r) => h("li", {},
     h("h3", {}, h("a", { href: `#/${r.route}`, text: r.title })),
     h("p", { text: r.blurb }),
-    h("p", { class: "progress", text: `Progress: ${progressText(r.task)}` })));
+    h("p", { class: "progress", text: `Progress: ${progressText(r.task)}` }),
+    r.more ? h("p", { class: "progress", text: `Second task: ${progressText(r.more)}` }) : null));
   const later = LATER.map((r) => h("li", {},
     h("h3", {}, r.title, " ", h("span", { class: "status-later", text: "(coming next)" })),
     h("p", { text: r.blurb })));
@@ -188,7 +190,7 @@ async function navigate() {
       return;
     }
     disposeRoom = cleanup;
-    if (index < 5) {
+    if (ROOMS[index].route.startsWith("story/")) {
       els.narrative.append(roomNav(index));
     }
     document.title = `${ROOMS[index].title} | QuantumLab`;

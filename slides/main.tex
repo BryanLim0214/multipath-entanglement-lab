@@ -1,0 +1,166 @@
+\documentclass[aspectratio=169,11pt]{beamer}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,booktabs}
+\graphicspath{{../figures/}}
+\IfFileExists{../report/numbers.tex}{\input{../report/numbers.tex}}{}
+\IfFileExists{../report/sensitivity.tex}{\input{../report/sensitivity.tex}}{}
+
+% Plain look: no navigation symbols, no shading, one accent color shared with the figures.
+\definecolor{ink}{HTML}{1C1C1C}
+\definecolor{muted}{HTML}{4A4A4A}
+\definecolor{mp}{HTML}{0072B2}
+\definecolor{sp}{HTML}{D55E00}
+\setbeamertemplate{navigation symbols}{}
+\setbeamercolor{normal text}{fg=ink,bg=white}
+\setbeamercolor{frametitle}{fg=ink,bg=white}
+\setbeamercolor{title}{fg=ink}
+\setbeamercolor{structure}{fg=mp}
+\setbeamerfont{frametitle}{series=\bfseries,size=\Large}
+\setbeamertemplate{itemize items}{\textendash}
+\setbeamertemplate{footline}{\hfill\textcolor{muted}{\footnotesize\insertframenumber\,/\,\inserttotalframenumber}\hspace{1.2em}\vspace{0.8em}}
+\newcommand{\kid}[1]{{\color{muted}\small Plain version: #1}}
+
+\title{Many Roads or One?}
+\subtitle{Reproducing multipath entanglement distribution (Halder, Matus, Fettweis, GLOBECOM 2024)}
+\author{Panhapiseth Lim \and Victor Akinmade}
+\institute{University of Texas of the Permian Basin}
+\date{}
+
+\begin{document}
+
+\begin{frame}
+\titlepage
+\end{frame}
+
+\begin{frame}{The problem}
+\begin{columns}[T]
+\column{0.55\textwidth}
+\begin{itemize}
+\item Two far-apart nodes want shared entangled pairs (Bell pairs).
+\item Each link makes pairs by trying $M$ times per round. Each try works with chance $q$.
+\item Middle nodes join pairs by \emph{entanglement swapping}. Every join lowers fidelity, so a path may have at most 4 middle nodes.
+\item Pairs are thrown away at the end of each round.
+\end{itemize}
+\column{0.42\textwidth}
+\kid{every road throws paper planes across a river each round. The ones that land are that road's seats. A middle city glues two pairs into one longer pair, but each glue adds a little grey paint.}
+\end{columns}
+\end{frame}
+
+\begin{frame}{The paper's claim}
+\begin{itemize}
+\item A request needs $n$ pairs between two nodes before its deadline.
+\item \textbf{Single path:} all $n$ pairs over one route.
+\item \textbf{Multipath:} the pairs split over routes that share no link.
+\item The paper solves each round with an exact ILP and with a fast greedy heuristic.
+\item Headline: multipath turns away fewer requests. At $q=0.9$: blocking ratio \paperBRMPILPqNine{} (multipath) against \paperBRSPILPqNine{} (single path).
+\end{itemize}
+\vspace{0.6em}
+\kid{send your postcards on several mail routes instead of one, so a single busy road cannot stop you.}
+\end{frame}
+
+\begin{frame}{What the paper left out, and how we handled it}
+\begin{itemize}
+\item The pair demand $n$, the number of paths $K$, the fidelity model and more are not given.
+\item We recorded 27 explicit assumptions (\texttt{ASSUMPTIONS.md}). Each one is cited where the code uses it.
+\item $n$ was calibrated on one quantity only: how often the heuristic splits ($\Gamma$, the paper's Table~I).
+\item The blocking ratio was never used for tuning, so it is a fair, held-out test.
+\item We also found 7 inconsistencies in the paper, for example an $\alpha$ value printed as 4/2 that should be 3/2.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{How we know the code is right}
+\begin{itemize}
+\item Two toy networks solved \textbf{by hand}, committed before any solver code existed.
+\item The paper's own Fig.~1 example, reproduced path for path.
+\item The ILP checked against brute force and against a second formulation (200 random windows).
+\item In every one of \auditWindows{} audited windows, heuristic $\le$ capped ILP $\le$ ILP, with \auditViolations{} violations.
+\item Planted bugs that the tests must catch, and do.
+\item Same dice for everyone: for a given seed, every method sees the same requests and link outcomes.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Part A: multipath wins, as the paper says}
+\centering
+\includegraphics[width=0.93\textwidth]{F1_partA_blocking.pdf}
+
+\small At $q=0.5$: heuristic \brMPHeuqFive{} (MP) against \brSPHeuqFive{} (SP); ILP \brMPILPqFive{} against \brSPILPqFive. 30 paired seeds, 95\% CI.
+\end{frame}
+
+\begin{frame}{Part A: what did not reproduce}
+\begin{columns}[T]
+\column{0.5\textwidth}
+\begin{itemize}
+\item \textbf{Levels.} At $q=0.9$ our ILPs block \brMPILPqNine{} and \brSPILPqNine, against the paper's \paperBRMPILPqNine{} and \paperBRSPILPqNine.
+\item \textbf{Heuristic against ILP.} The paper calls them comparable. Ours: \brMPHeuqFive{} against \brMPILPqFive{} at $q=0.5$.
+\item \textbf{Why the gap:} greedy search alone (\brMPHeuDoneqFive) and the spare-seat rule alone (\brMPILPDeltaqFive) cost little. Together they cost a lot.
+\end{itemize}
+\column{0.47\textwidth}
+\includegraphics[width=\textwidth]{F2_partA_gamma.pdf}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Why are our blocking levels lower?}
+% Filled in from report/sensitivity.tex after the 30-seed sensitivity run.
+\begin{itemize}
+\item Two readings of the request model are open: arrival \emph{gaps} instead of arrival times, and $n$ pairs \emph{per slot} instead of per round.
+\item We tested both after Part A was frozen, with the same seeds and methods.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Part B: the same question in QuNetSim}
+% Filled in from results/partB_summary.md once Part B has finished.
+\begin{itemize}
+\item Real QuNetSim hosts: pairs created with \texttt{send\_epr}, Bell measurements at middle nodes, two classical bits, Pauli corrections.
+\item Each link has $M$ attempts per round with success chance $q$, shared by all requests (A22).
+\item Single path: QuNetSim's own shortest-path router. Multipath: up to $k$ link-disjoint paths.
+\item Three networks: chain (sanity check), two branches (exact formula to compare against), $3\times3$ grid. 20 seeds per setting.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Extension: keep a spare seat, except on your last chance}
+\begin{columns}[T]
+\column{0.49\textwidth}
+\begin{itemize}
+\item Hypothesis fixed before any run: at $q=0.5$, blocking drops by at least \extThreshold.
+\item Result: a drop of \extDiffqFive{} (CI \extCIloqFive{} to \extCIhiqFive). \textbf{Supported.}
+\end{itemize}
+\column{0.49\textwidth}
+\begin{itemize}
+\item But no spare seat for anyone ($\delta=1$) gives a drop of \extDoneDiffqFive.
+\item So the rule itself is the cost, not the deadline.
+\end{itemize}
+\end{columns}
+\vspace{0.3em}
+\centering\includegraphics[width=0.92\textwidth]{F4_partC_extension.pdf}
+\end{frame}
+
+\begin{frame}{Limitations}
+\begin{itemize}
+\item The abstract model is a simplification: perfect swaps, no memory decay, fidelity only as a hop limit.
+\item QuNetSim is a qualitative check, not real hardware: no noise, and link failure comes from our own budget.
+\item The results depend on the parameters we chose: $n$, $K$ and the arrival model are not in the paper.
+\item The fidelity model is inferred. It reproduces both of the paper's hop limits.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Try it: QuantumLab}
+\begin{itemize}
+\item An interactive 3D lab in the browser, built on the same engine.
+\item Story chapters: magic coins, paper planes, the matchmaker, paint mixing, rush hour.
+\item Arena: single path and multipath replay the same real run side by side, with switches to turn rules off.
+\item Every task has a ladder of help: nudge, hint, stronger hint, show me, do it for me.
+\end{itemize}
+\vspace{0.4em}
+\texttt{quantumlab/index.html} in the repository.
+\end{frame}
+
+\begin{frame}{Takeaways}
+\begin{itemize}
+\item \textbf{Reproduced:} multipath blocks fewer requests than single path, at every $q$ and every load, for both the heuristic and the ILP.
+\item \textbf{Not reproduced:} the paper's blocking levels and its heuristic-ILP closeness. Both depend on details the paper leaves out.
+\item \textbf{Extension:} the heuristic's spare-seat rule causes most of its gap to the ILP.
+\item Everything reruns from the repository with three commands.
+\end{itemize}
+\end{frame}
+
+\end{document}

@@ -156,7 +156,7 @@ function mount(ctx) {
   [dial1, dial2].forEach((d) => d.addEventListener("change", () => { drawStage(null); ladder.progress(); }));
 
   narrative.append(
-    chapterHead("Chapter 1 of 5", "Two questions",
+    chapterHead("Chapter 1 of 6", "Two questions",
       "Two magic coins sit in two cities. Each city asks its coin one question: dial Z or dial X."),
     caption({
       kid: "You have two magic coins. Ask both the same question and they always agree. Ask them different questions and the answers look random.",

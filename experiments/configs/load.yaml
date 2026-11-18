@@ -1,0 +1,14 @@
+# Load sweep (the lab's axis): q fixed at 0.7, request count varies.
+experiment: load
+rows: 3
+cols: 3
+R: [20, 40, 60, 80, 100]
+M: 6
+T: 100
+tc: [10]
+F: 0.95
+f: 0.78
+q: [0.7]
+n_spec: from_calibration
+seeds: 30
+methods: [SP-SPF, SP-Heu, MP-Heu, SP-ILP, MP-ILP]

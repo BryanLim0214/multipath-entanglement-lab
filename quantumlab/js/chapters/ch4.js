@@ -145,7 +145,7 @@ async function mount(ctx) {
   slider.addEventListener("input", () => { state.f = Number(slider.value); ladder.progress(); refresh(); });
 
   narrative.append(
-    chapterHead("Chapter 4 of 5", "Paint mixing",
+    chapterHead("Chapter 4 of 6", "Paint mixing",
       "Every join mixes a little grey paint into the pair. Add middle cities and see when the pair is too washed out to use."),
     caption({
       kid: "Every join mixes in a little grey paint. A long chain gets too washed out to use.",

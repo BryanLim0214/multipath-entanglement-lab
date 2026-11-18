@@ -41,3 +41,16 @@ def test_path_equals_arc(seed):
     assert value(win, arc_dir) >= value(win, arc) - 1e-6          # directed disjointness is looser
     assert value(win, path) >= value(win, ilp.solve_path(win, K=1)) - 1e-6    # MP >= SP
     assert value(win, path) >= value(win, ilp.solve_path(win, delta=2)) - 1e-6  # ILP >= ILP-delta
+
+
+@pytest.mark.parametrize("seed", range(200))
+def test_single_path_model_equals_general(seed):
+    """solve_path(K=1) uses the small single-path model; it must match the general path model with K=1,
+    with and without the A21 cap."""
+    win = random_window(seed)
+    for delta in (None, 2):
+        small = ilp.solve_single_path(win, delta=delta)
+        general = ilp.solve_path_general(win, K=1, delta=delta)
+        assert validate(win, small.allocations) == []
+        assert all(len(a.paths) == 1 for a in small.allocations)
+        assert value(win, small) == pytest.approx(value(win, general), abs=1e-6)

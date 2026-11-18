@@ -1,6 +1,6 @@
 # QuantumLab
 
-An interactive 3D browser companion to the lab project that reproduces Halder, Matus and Fettweis (GLOBECOM 2024), "multipath entanglement distribution". It is a teaching tool and is not graded. Tier 1 holds the landing page, the Story chapters 1 to 5, and the Fig. 1 debugger. The Arena and the Code Lab come next.
+An interactive 3D browser companion to the lab project that reproduces Halder, Matus and Fettweis (GLOBECOM 2024), "multipath entanglement distribution". It is a teaching tool and is not graded. Tier 1 holds the landing page, the Story chapters 1 to 5, and the Fig. 1 debugger. Tier 2 adds the Arena and Story chapter 6. The Code Lab comes next.
 
 ## Run it
 
@@ -20,12 +20,14 @@ Then open http://localhost:8765/quantumlab/index.html. On GitHub Pages it works 
 | `js/three-stage.js` | Shared 3D stage: spheres for cities, tubes for seats, beads for pairs, HTML labels |
 | `js/help-ladder.js` | The five help levels and per-task progress in localStorage |
 | `js/ui.js`, `js/math.js`, `js/referee.js` | Element builder, captions and prediction box, exact formulas, port of `core.validate` |
-| `js/chapters/ch1.js` to `ch5.js`, `js/fig1.js` | The rooms |
+| `js/chapters/ch1.js` to `ch6.js`, `js/arena.js`, `js/fig1.js` | The rooms |
+| `js/arena-model.js`, `js/arena-story.js` | Arena logic with no page elements (fates, seats, counters, why a request was blocked) and the plain-language story text |
 | `data/hints.json` | Five help levels per task id |
-| `data/fig1_steps.json`, `data/rushhour.json`, `data/fidelity.json` | Written by the exporter from the real engine |
-| `tools/export_data.py` | Exporter. Run with `.venv\Scripts\python.exe quantumlab	ools\export_data.py` |
+| `data/fig1_steps.json`, `data/rushhour.json`, `data/fidelity.json`, `data/arena.json` | Written by the exporter from the real engine and the Part A results |
+| `tools/export_data.py` | Exporter. Run with `.venv\Scripts\python.exe quantumlab\tools\export_data.py` |
 | `tools/check_contrast.py` | Computes the contrast table below from `css/lab.css` |
 | `tools/parity_check.mjs` | Lets a test compare the JavaScript referee and formulas with Python |
+| `tools/arena_check.mjs` | Runs the Arena replay logic over `data/arena.json` so a test can compare it with the exported numbers |
 | `vendor/` | three.js 0.170.0 and the fonts, with URLs and sha256 in `vendor/SOURCES.md` |
 
 ## Where the numbers come from
@@ -33,11 +35,22 @@ Then open http://localhost:8765/quantumlab/index.html. On GitHub Pages it works 
 - The exporter imports `src/qmp` and runs `heuristic.alpha_scores`, `heuristic.place_heuristic`, `ilp.solve_path` and `fidelity.max_intermediate`. Each data file stores the last commit that touched `src/` and a sha256 of the source of the functions used.
 - Rush hour answers are the ILP optimum from `qmp.ilp.solve_path` (with `K=1` for one road per request, and `delta=2` for the spare-seat rule) and the heuristic answer with the lowest-id tie-break.
 - The chapter 4 meter is computed in the page with the Werner formula. The test suite checks that it agrees with the exported limits, and the page shows an error if they ever disagree.
-- `tests/test_quantumlab_data.py` re-runs the exporter and compares it with the committed data, checks the hint file, and runs the JavaScript referee against `core.validate` on 11 broken answers and the exported optima.
+- `tests/test_quantumlab_data.py` re-runs the exporter and compares it with the committed data, checks the hint file, and runs the JavaScript referee against `core.validate` on 11 broken answers and the exported optima. For the Arena it also validates every allocation of every trace window with both `core.validate` and the JavaScript referee, checks that the JavaScript replay reproduces each blocking ratio, and checks that chapter 6 numbers equal the CSV means.
+
+## Arena and chapter 6 data
+
+`data/arena.json` is written by the same exporter, in one process and with no solver (the ILP traces are read, never re-solved).
+
+- **Replays.** For q in {0.5, 0.7, 0.9} and seeds 0 to 2 it holds the Part A traces `results/traces/partA_<method>_q<q>_s<seed>.json` for SP-SPF, SP-Heu, MP-Heu, SP-ILP and MP-ILP, with every number kept as written. The requests and the seats per window are stored once per run, because every method sees the same ones (A19). The exporter checks that.
+- **Rule switches.** The exporter runs `qmp.sim.simulate` with the heuristic for all eight on and off combinations of splitting, the spare-seat rule (`MP-Heu-d1`) and the hop limit (`-nohop`), with the same `SimConfig` and the same `n_spec` (from `experiments.common.calibrated_n_spec()`). MP-Heu and SP-Heu are the committed traces, and a test checks that re-running them gives the same bytes. The switches work for the heuristic pair only. The ILP traces exist only with all rules on.
+- **Hop limit off** uses f = 0.6. With F = 0.95 that allows 10 middle cities (A5), and a 3 by 3 grid has at most 7, so the limit never binds. On this grid the hop limit changes the fate of at most a few requests per run, and of none in some runs, so the switch often shows little. That is a result, not a bug.
+- **Chapter 6.** The 30-seed mean and 95% interval per method and q come from `results/partA_small.csv` through `qmp.stats.mean_ci`, and the paired difference (single-path minus multipath, same seed) through `qmp.stats.paired_diff_ci`. The paper's 0.27 and 0.42 at q = 0.9 come from `data/paper_values.yaml` (printed in the text, A20).
+- **Provenance.** `meta` holds the engine commit, the hash of the engine functions, the hash of the Arena functions, and the sha256 of the traces, the CSV, the paper values and the calibration choice. `results/` is rewritten whenever Part A is re-run. After a re-run, run the exporter again, or `tests/test_quantumlab_data.py` will fail on purpose.
+- **Why a request was blocked.** For the heuristic, the page replays the order in which it tries requests (A16) and subtracts the seats of the requests tried before it, so the seats shown are the ones it saw (A8). For the exact solver there is no order, so the seats at the end of the window are shown. The multipath figure is an upper bound that ignores the hop limit and the disjoint-roads rule, and the page says so.
 
 ## Assumptions used
 
-A5 (Werner fidelity), A8 and A9 (heuristic seats and tie-break), A21 (the spare-seat cap per request and link). Each is cited where the code uses it.
+A1 (pairs per request, the reason our levels differ from the paper's), A5 (Werner fidelity and the hop limit), A8 and A9 (heuristic seats and tie-break), A14 (eligible windows), A16 (request order), A19 (same dice for every method), A20 (paper values), A21 (the spare-seat cap per request and link). Each is cited where the code uses it.
 
 ## Contrast ratios
 

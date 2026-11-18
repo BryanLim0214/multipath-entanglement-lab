@@ -1,0 +1,7 @@
+choice: uniform:1:3
+rmse:
+  uniform:1:3: 0.16307833139662586
+  uniform:2:4: 0.23480326412639832
+  uniform:2:6: 0.2818362998796743
+  uniform:2:10: 0.2984962158464633
+note: calibrated on MP-Heu Gamma only; blocking ratio and MP-ILP Gamma are held out

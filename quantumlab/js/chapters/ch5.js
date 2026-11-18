@@ -373,7 +373,7 @@ async function mount(ctx) {
   }
 
   narrative.append(
-    chapterHead("Chapter 5 of 5", "Rush hour",
+    chapterHead("Chapter 5 of 6", "Rush hour",
       "Three requests want pairs at the same time, and every link has a fixed number of seats. A request is served only if all its pairs fit."),
     caption({
       kid: "A request says: send n pairs from here to there before my deadline. If no route has enough seats, the request is turned away. That is called blocked.",

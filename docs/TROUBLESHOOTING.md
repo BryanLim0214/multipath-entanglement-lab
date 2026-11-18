@@ -43,3 +43,26 @@
    ```
 
 3. Do not run Part A and Part B at the same time.
+
+## Part B finished all runs but never wrote its CSV (2026-11-18)
+
+**Symptom.**
+- The log reached `740/740 runs`.
+- After that the step sat for 80 minutes, with 3 worker processes each holding 28 child processes, and `results/partB.csv` never appeared.
+
+**Cause.**
+- `with ProcessPoolExecutor(...)` waits, on exit, for every worker to quit.
+- A worker never quits on its own: its QuNetSim network keeps host threads running, plus one EQSN process per qubit.
+- The results lived only in the parent's memory, so killing the hang lost them.
+- A second bug was waiting behind it: the timeout rows had no `n` column, so sorting them for `partB_timeouts.csv` would have raised `KeyError`.
+
+**Fix in `partB_qunetsim/run_partB.py`.**
+- Every finished run is appended at once to `results/partB_partial.jsonl`.
+- The CSVs are written after each group.
+- The pool is stopped with `kill_pool`, which ends each worker's process tree instead of waiting for it.
+- The script ends with `os._exit` once its outputs are written.
+- `--limit N` runs only the first N tasks per group. `--limit 6` checks the whole path in about 12 seconds.
+
+**Fix in `tools/run_safe.ps1`.**
+- `-File` passes `-Steps a,b` as the single string `"a,b"`. The runner now splits it.
+- An unknown step name aborts the run. Before, it started a bare `python` that waited for input forever.

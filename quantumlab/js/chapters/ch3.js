@@ -149,7 +149,7 @@ function mount(ctx) {
   resetButton.addEventListener("click", () => { reset(); ladder.progress(); });
 
   narrative.append(
-    chapterHead("Chapter 3 of 5", "The matchmaker",
+    chapterHead("Chapter 3 of 6", "The matchmaker",
       "A and D are two cities with no direct link. The city in the middle, B, can introduce them."),
     caption({
       kid: "A middle city holds one coin paired with the left city, and one paired with the right city. It joins the two, then phones the result to both ends. Now the two end cities share a pair.",
