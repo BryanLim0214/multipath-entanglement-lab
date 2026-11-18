@@ -34,7 +34,7 @@ Edges (capacity): 1–2: **2**, 2–5: **2**, 1–3: **2**, 3–5: **2**, 1–4:
 **Your answers:**
 - SP-ILP optimal objective = ____. Which requests are served, and on which paths? ________________
 - MP-ILP optimal objective = ____. Which requests are served, and how are the pairs split over paths? ________________
-- 🧠 Bonus (heuristic with δ=2, the "keep a spare seat" rule): can r1 be served? ____. Can r2? ____. Explain in one line: ________________
+- Bonus (heuristic with δ=2, the "keep a spare seat" rule): can r1 be served? ____. Can r2? ____. Explain in one line: ________________
 
 ---
 
@@ -57,8 +57,8 @@ Edges (capacity): 1–2: **3**, 2–3: **3**, 1–4: **2**, 4–5: **2**, 5–6:
 **Your answers:**
 - Check first: with F=0.95 and f=0.85, is the max number of middle nodes really 2? Show the w^L calculation: ________________
 - MP-ILP optimal objective = ____. Which requests are served, and on which paths? ________________
-- 🧠 What would the MP-ILP objective be if you *forgot* the hop limit? ____. Why does that matter for testing our code? ________________
-- 🧠 Bonus (heuristic with δ=2): what happens to rA and to rB? ________________
+- What would the MP-ILP objective be if you *forgot* the hop limit? ____. Why does that matter for testing our code? ________________
+- Bonus (heuristic with δ=2): what happens to rA and to rB? ________________
 
 ---
 Solved by: ____________  Date: ____________

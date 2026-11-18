@@ -1,29 +1,52 @@
-# Paper notes (write in YOUR own words)
+# Paper notes (written in my own words)
 
 > The lab requires these notes "in your own words".
 > - Use `study_guide.md` and `../ASSUMPTIONS.md` as references, but write the text yourself.
 > - Short bullet points are fine.
-> - Delete the prompts (the lines starting with ✏️) as you answer them.
+> - Replace each `TODO(you):` prompt with your answer. The tracker stays red until none are left.
 
-**Paper:** Halder, Matus, Fettweis, "On the Concurrent Multipath Entanglement Distribution in Quantum Networks", IEEE GLOBECOM 2024, pp. 2791–2796.
+**Paper:** Halder, Matus, Fettweis, "On the Concurrent Multipath Entanglement Distribution in Quantum Networks", IEEE GLOBECOM 2024, pp. 2791 to 2796.
 
 ## Network model
-✏️ What are nodes, links, and memories (M)? What is q? How is a link's capacity C_ij made each window? What does swapping do, and what limits path length?
+TODO(you): Answer these:
+- What are nodes, links, and memories (M)?
+- What is q?
+- How is a link's capacity C_ij produced in each window?
+- What does swapping do, and what limits the length of a path?
 
-## Request model and blocking ratio
-✏️ What is in the tuple ⟨s, d, n, a, h, b, f⟩? When can a request run (windows)? What is ρ, and why does the last chance get ρ=1? Write the BR formula.
+## Request model
+TODO(you): Answer these:
+- What is in the tuple ⟨s, d, n, a, h, b, f⟩?
+- When can a request run (which windows)?
+- What is ρ, and why does a request's last chance get ρ = 1?
+
+Then write the blocking-ratio formula.
 
 ## ILP formulation
-✏️ List the variables in one line each. What is the objective? Summarise each constraint group in one line: routing (2a–2f), pair distribution (3a–3b), pair allocation (4a–4c).
+TODO(you):
+- List the variables, one line each.
+- What is the objective?
+- Summarise each constraint group in one line:
+  - routing (2a to 2f);
+  - pair distribution (3a, 3b);
+  - pair allocation (4a to 4c).
 
 ## Heuristic steps
-✏️ Algorithm 1 (the per-window loop), Algorithm 2 (the order requests are handled in), Algorithm 3 (the greedy path walk using α, the δ check, and splitting). Re-trace the Fig. 1 example by hand: which paths, and how many pairs on each?
+TODO(you): Describe each algorithm:
+- Algorithm 1: the per-window loop.
+- Algorithm 2: the order in which requests are handled.
+- Algorithm 3: the greedy path walk using α, the δ check, and splitting.
+
+Then re-trace the Fig. 1 example by hand: which paths are chosen, and how many pairs go on each?
 
 ## Evaluation setup
-✏️ The topologies, |R|, M, T, t_c, q values, δ, F, f, the number of runs, the solver, and the metrics (Γ, BR, CT). What headline numbers did they report?
+TODO(you): List the settings and results:
+- Settings: topologies, |R|, M, T, t_c, q values, δ, F, f, number of runs, and solver.
+- Metrics: Γ, BR, CT.
+- The headline numbers they report.
 
 ## Fidelity table (by hand)
-✏️ With F=0.95, compute F_L for L = 1…6 links using F_L = (3w^L+1)/4 with w = (4F−1)/3. Where does it drop below 0.78?
+TODO(you): Use F = 0.95 and w = (4F − 1)/3. For L = 1 to 6 links, compute F_L = (3w^L + 1)/4. Where does F_L drop below 0.78?
 
 | L (links) | intermediate nodes | F_L |
 |---|---|---|
@@ -35,7 +58,7 @@
 | 6 | 5 | |
 
 ## Details the paper leaves out (my assumptions)
-✏️ List what's missing and what you will choose. Cross-check against `../ASSUMPTIONS.md`.
+TODO(you): List what is missing and what you will choose for each. Cross-check your list against `../ASSUMPTIONS.md`.
 
 ## Things that looked wrong or inconsistent
-✏️ Note anything that doesn't add up (hint: check α₃ in Fig. 1).
+TODO(you): Note anything that doesn't add up. Hint: check α₃ in Fig. 1.

@@ -44,6 +44,17 @@ You are the project's hostile reviewer. Your job is to find every way the work c
   - `AI_LOG.md` is updated, with the student's own keep/change/reject notes.
   - Explain-back quizzes exist for each week.
 - **Teaching material:** every analogy has a "where this breaks" note, and none teaches something false (for example, copying a quantum state).
+- **No slop and full polish** (`docs/DESIGN_RULES.md`):
+  - Run `tools/lint_slop.py`. Audit every `slop-ok:` waiver and reject weak reasons.
+  - Then inspect by eye for things the linter can't catch:
+    - generic "AI look" layouts and default component-kit styling;
+    - default matplotlib styling;
+    - inconsistent method colors;
+    - placeholder text;
+    - misaligned spacing;
+    - missing empty, loading or error states;
+    - missing focus rings;
+    - motion that encodes nothing.
 
 ## Output format
 ```

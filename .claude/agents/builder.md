@@ -19,6 +19,12 @@ You implement exactly one well-specified task in `D:\QuantumFinalProject`. A stu
 - **Tests:** write or extend tests in `tests/` first, and run `.venv\Scripts\python.exe -m pytest -q` before reporting. Never weaken a test to make it pass.
 - **Library facts:** verify every QuNetSim, PuLP or networkx API in the installed source under `.venv\Lib\site-packages\` and cite `file:line` in your report. Never guess a function name.
 - **No fabrication:** never type numbers into results, figures, or docs by hand. Numbers come from code in `results/`. Label digitized paper values "approx., digitized".
+- **No slop:** follow `docs/DESIGN_RULES.md` for every word, page, figure and pixel.
+  - No em dashes, no emoji, no hype words.
+  - No pills, no glass panels, no opacity used for hierarchy, no gradients.
+  - Use only the specified fonts.
+  - Figures use `figures/qmp.mplstyle` and the fixed method colors.
+  - Run `.venv\Scripts\python.exe tools\lint_slop.py`. It must print "No slop found."
 - **Reproducibility:** seeded RNG (`numpy.random.default_rng(seed)`), deterministic tie-breaks, and solver `threads=1`.
 
 ## Report back (under 350 words)

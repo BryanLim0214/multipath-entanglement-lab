@@ -14,7 +14,7 @@ items:
   - id: W1-notes
     week: 1
     req: "Write down, in your own words: network model; request model + blocking ratio; ILP + heuristic steps; topologies, parameters, runs"
-    check: {contains: {file: docs/paper_notes.md, all: ["## Network model", "## Request model", "## ILP formulation", "## Heuristic steps", "## Evaluation setup"], none: ["✏️"]}}
+    check: {contains: {file: docs/paper_notes.md, all: ["## Network model", "## Request model", "## ILP formulation", "## Heuristic steps", "## Evaluation setup"], none: ["TODO(you)"]}}
   - id: W1-assumptions
     week: 1
     req: "If a detail is missing, list it as an assumption you will have to choose yourself"
@@ -153,6 +153,12 @@ items:
     req: "Do not paste unpublished material or the paper's text into tools you are not allowed to use for it"
     check: {manual: ai_paper_permission}
     evidence: null
+
+  # ---------- Quality bar (ours, enforced every week) ----------
+  - id: Q-no-slop
+    week: 1
+    req: "(ours) No AI slop in any deliverable: no em dashes, emoji, hype words, pills, glass, opacity hierarchy (docs/DESIGN_RULES.md)"
+    check: {cmd: "python tools/lint_slop.py"}
 
   # ---------- Final deliverables ----------
   - id: D-plots
