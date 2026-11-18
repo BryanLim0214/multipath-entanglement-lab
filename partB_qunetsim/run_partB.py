@@ -174,8 +174,29 @@ def kill_pool(pool):
     for p in procs:
         if os.name == "nt":            # /T also ends the worker's EQSN child processes
             subprocess.run(["taskkill", "/F", "/T", "/PID", str(p.pid)], capture_output=True)
-        else:
-            p.kill()
+        else:                          # kill the EQSN children too, or they keep our stdout pipe open
+            for pid in _descendants(p.pid) + [p.pid]:
+                try:
+                    os.kill(pid, 9)
+                except OSError:
+                    pass
+
+
+def _descendants(root):
+    """Linux: every process below `root`, found through /proc (no psutil dependency). Empty elsewhere."""
+    children = {}
+    for stat in pathlib.Path("/proc").glob("[0-9]*/stat"):
+        try:
+            fields = stat.read_text().rsplit(")", 1)[1].split()
+            children.setdefault(int(fields[1]), []).append(int(stat.parent.name))
+        except (OSError, IndexError, ValueError):
+            continue
+    out, todo = [], [root]
+    while todo:
+        for c in children.get(todo.pop(), []):
+            out.append(c)
+            todo.append(c)
+    return out
 
 
 def run_group(tasks, label, partial):
@@ -198,7 +219,7 @@ def run_group(tasks, label, partial):
             tos.append({**{c: res["row"][c] for c in ("experiment", "topology", "method", "k", "q", "n", "drop_rate", "seed")},
                         "timeouts": res["timeouts"]})
             if i % 50 == 0 or i == len(futures):
-                print(f"[{label}] {i}/{len(futures)} runs, {time.perf_counter() - t0:.0f} s", flush=True)
+                say(f"[{label}] {i}/{len(futures)} runs, {time.perf_counter() - t0:.0f} s")
     finally:
         kill_pool(pool)
     return rows, tos, mism, errors
@@ -281,6 +302,8 @@ def main():
     ap.add_argument("--groups", default="main,drops", help="comma list of: main, drops")
     ap.add_argument("--limit", type=int, default=None, help="run only the first N tasks per group (testing)")
     ap.add_argument("--quick", action="store_true", help="4 tasks per group, outputs in results/quick/")
+    ap.add_argument("--resume", action="store_true",
+                    help="keep the runs saved in partB_partial.jsonl and run only the missing ones")
     args = ap.parse_args()
     if args.smoke:
         return smoke()
@@ -293,28 +316,71 @@ def main():
     write_analytic()
     if args.analytic_only:
         return
-    rows, tos, errors = [], [], []
+    errors = []
     t0 = time.perf_counter()
     partial = RESULTS / "partB_partial.jsonl"
     partial.parent.mkdir(parents=True, exist_ok=True)
-    partial.unlink(missing_ok=True)
+    done = set(saved_runs(partial)) if args.resume else set()
+    if not args.resume:
+        partial.unlink(missing_ok=True)
     for group, maker in (("main", tasks_main), ("drops", tasks_drops)):
         if group not in args.groups.split(","):
             continue
-        g_rows, g_tos, mism, g_err = run_group(maker()[:args.limit], group, partial)
-        rows += g_rows
-        tos += g_tos
-        errors += g_err
-        print(f"[{group}] done: {len(g_rows)} runs, dice mismatches {mism}, errors {len(g_err)}, "
-              f"timeouts {sum(t['timeouts'] for t in g_tos)}, {time.perf_counter() - t0:.0f} s", flush=True)
-        # written after every group, so finished groups survive a later failure
-        write_csv(RESULTS / "partB.csv", sorted(rows, key=sort_key), CSV_COLUMNS)
-        write_csv(RESULTS / "partB_timeouts.csv", sorted(tos, key=sort_key),
-                  ["experiment", "topology", "method", "k", "q", "n", "drop_rate", "seed", "timeouts"])
+        tasks = [t for t in maker()[:args.limit] if task_key(t) not in done]
+        say(f"[{group}] {len(tasks)} runs to do" + (f" ({len(done)} saved runs kept)" if args.resume else ""))
+        if tasks:
+            g_rows, g_tos, mism, g_err = run_group(tasks, group, partial)
+            errors += g_err
+            say(f"[{group}] done: {len(g_rows)} runs, dice mismatches {mism}, errors {len(g_err)}, "
+                f"timeouts {sum(t['timeouts'] for t in g_tos)}, {time.perf_counter() - t0:.0f} s")
+        write_outputs(partial)        # after every group, from every saved run, so nothing finished is lost
     for e in errors[:10]:
-        print("ERROR", e["task"], e["error"])
-    sys.stdout.flush()
+        say(f"ERROR {e['task']} {e['error']}")
+    try:
+        sys.stdout.flush()
+    except (OSError, ValueError):
+        pass
     os._exit(1 if errors else 0)       # outputs are written; do not let a leftover QuNetSim thread hold the exit
+
+
+def say(msg):
+    """Progress line that cannot kill the run: if the console or pipe has gone away, the message is dropped
+    (results are saved per run anyway). A broken pipe once ended a run part-way (docs/TROUBLESHOOTING.md)."""
+    try:
+        print(msg, flush=True)
+    except (OSError, ValueError):
+        pass
+
+
+def task_key(t):
+    """Identity of one run, shared by Task objects and saved CSV rows."""
+    return (t.experiment, t.topology, t.method, t.k, t.q, t.M, str(t.n), t.drop_rate, t.seed)
+
+
+def row_key(r):
+    return (r["experiment"], r["topology"], r["method"], r["k"], r["q"], r["M"], str(r["n"]), r["drop_rate"], r["seed"])
+
+
+def saved_runs(partial):
+    """{run key: saved result} for every successful run in the JSON-lines log (the last copy wins)."""
+    out = {}
+    if partial.exists():
+        for line in partial.read_text().splitlines():
+            res = json.loads(line)
+            if "row" in res:
+                out[row_key(res["row"])] = res
+    return out
+
+
+def write_outputs(partial):
+    """results/partB.csv and partB_timeouts.csv from every saved run."""
+    saved = saved_runs(partial).values()
+    rows = [r["row"] for r in saved]
+    tos = [{**{c: r["row"][c] for c in ("experiment", "topology", "method", "k", "q", "n", "drop_rate", "seed")},
+            "timeouts": r["timeouts"]} for r in saved]
+    write_csv(RESULTS / "partB.csv", sorted(rows, key=sort_key), CSV_COLUMNS)
+    write_csv(RESULTS / "partB_timeouts.csv", sorted(tos, key=sort_key),
+              ["experiment", "topology", "method", "k", "q", "n", "drop_rate", "seed", "timeouts"])
 
 
 if __name__ == "__main__":      # guard needed: EQSN starts child processes (Windows 'spawn')

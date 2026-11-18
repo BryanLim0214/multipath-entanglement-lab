@@ -232,5 +232,83 @@
         "student": "The list under the switches names each request that changed fate."
       }
     ]
+  },
+  "codelab-c1": {
+    "title": "Challenge 1: beat Lazy Walker",
+    "breaks": "The roads from disjoint_paths are not the only way to split a request. Another order or another set of roads may do better or worse on other seeds.",
+    "levels": [
+      {
+        "kid": "Lazy Walker turns a request away when one road has too few seats. What could it do instead?",
+        "student": "Look at what choose_paths returns: a list. How many roads can it hold?"
+      },
+      {
+        "kid": "Share the request between roads that do not touch, so each road needs only a few seats.",
+        "student": "Pseudocode: find roads that share no link, widest first. Give each road as many pairs as half its thinnest link allows, until all pairs are placed. If pairs are left over, return an empty list."
+      },
+      {
+        "kid": "The page added a fill-in-the-blank outline at the end of your code, as comments.",
+        "student": "Fill the blanks: sort by the thinnest link, divide by net.spare, and compare what is left with zero. The Splitter template has the helpers disjoint_paths and thinnest."
+      },
+      {
+        "kid": "Watch the page set your code beside a working answer and mark the lines that differ.",
+        "student": "Your lines are on the left and the working solution is on the right. A minus marks a line only you have, and a plus marks a line only the solution has."
+      },
+      {
+        "kid": "The page put a working split rule in the editor and ran it.",
+        "student": "It splits each request over roads with no shared link, widest first, and keeps the paper's spare seat on each road, so it blocks fewer requests than Lazy Walker."
+      }
+    ]
+  },
+  "codelab-c2": {
+    "title": "Challenge 2: beat SP-Heu with no illegal answers",
+    "breaks": "Winning on 10 seeds does not prove the rule on other grids. A rule can also be legal on these seeds and break a rule on others.",
+    "levels": [
+      {
+        "kid": "Which rules can make the referee reject an answer?",
+        "student": "Check the endpoints, the middle-city limit, shared links, the seats on every link, and the total number of pairs."
+      },
+      {
+        "kid": "Only return an answer the referee would accept, and return an empty list when you are unsure.",
+        "student": "Pseudocode: keep the roads within net.max_middle middle cities. Give each road at most half its thinnest link in pairs. If the pairs do not add up to request.n, return an empty list."
+      },
+      {
+        "kid": "The outline in your editor shows where the limits go.",
+        "student": "Fill net.max_middle into the road filter and net.spare into the division. The answer is all or nothing, so left must be zero at the end."
+      },
+      {
+        "kid": "Watch the page set your code beside a working answer and mark the lines that differ.",
+        "student": "Your lines are on the left and the working solution is on the right. A minus marks a line only you have, and a plus marks a line only the solution has."
+      },
+      {
+        "kid": "The page put a legal split rule in the editor and ran it.",
+        "student": "It keeps roads within the middle-city limit and puts half of each road's thinnest link in pairs, so the referee reports no illegal answers and it blocks fewer requests than SP-Heu."
+      }
+    ]
+  },
+  "codelab-c3": {
+    "title": "Challenge 3: beat MP-Heu",
+    "breaks": "Using every seat helps here because a blocked request is lost for good. The paper keeps spare seats for a reason, and other setups may reward them.",
+    "levels": [
+      {
+        "kid": "Your Challenge 2 answer leaves half of every road empty. Is that required?",
+        "student": "The referee only checks capacity and the physics. Look at net.spare and ask what happens if you divide by 1 instead."
+      },
+      {
+        "kid": "An empty seat helps nobody if the next request is turned away for lack of seats.",
+        "student": "Pseudocode: give each road as many pairs as its thinnest link allows, not half of it. Keep the rest as before. The extension in the report relaxes the spare seat in a similar way."
+      },
+      {
+        "kid": "The outline marks the one line that changes from Challenge 2.",
+        "student": "Fill the first blank with 1 so the division keeps no spare seat. The second blank is still zero."
+      },
+      {
+        "kid": "Watch the page set your code beside a working answer and mark the lines that differ.",
+        "student": "Your lines are on the left and the working solution is on the right. A minus marks a line only you have, and a plus marks a line only the solution has."
+      },
+      {
+        "kid": "The page put a no-spare-seat split rule in the editor and ran it.",
+        "student": "Each road carries as many pairs as its thinnest link allows, so it blocks fewer requests than MP-Heu."
+      }
+    ]
   }
 }

@@ -16,6 +16,7 @@ $commands = @{
     partC   = @("experiments\run_partC.py", "--workers", "$Workers")
     figures = @("experiments\make_figures.py")
     partB   = @("-m", "partB_qunetsim.run_partB")
+    partBresume = @("-m", "partB_qunetsim.run_partB", "--resume")
     partBreport = @("-m", "partB_qunetsim.report_partB")
     crosscheck  = @("-m", "partB_qunetsim.run_partB", "--crosscheck")
     sensitivity = @("experiments\sensitivity.py", "--workers", "$Workers")

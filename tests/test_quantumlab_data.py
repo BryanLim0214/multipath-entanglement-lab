@@ -49,7 +49,7 @@ def without_commit(data: dict) -> dict:
     return clone
 
 
-@pytest.mark.parametrize("name", ["fig1_steps.json", "rushhour.json", "fidelity.json", "arena.json"])
+@pytest.mark.parametrize("name", ["fig1_steps.json", "rushhour.json", "fidelity.json", "arena.json", "codelab.json"])
 def test_committed_data_equals_a_fresh_export(name):
     fresh = exporter.build_all()[name]
     assert without_commit(read_json(name)) == without_commit(json.loads(json.dumps(fresh)))

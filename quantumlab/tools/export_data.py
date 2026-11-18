@@ -215,9 +215,15 @@ ARENA_SOURCE_FUNCTIONS = [sim.simulate, sim.to_trace, sim.check_legal, model.mak
                           stats.paired_diff_ci]
 
 
+def text_bytes(path: Path) -> bytes:
+    """A file's bytes with CRLF turned into LF. With git's core.autocrlf a Windows checkout has CRLF and a
+    Linux one (CI) has LF, so raw bytes would hash differently on each machine for the same commit."""
+    return path.read_bytes().replace(b"\r\n", b"\n")
+
+
 def file_sha256(path: Path) -> str:
-    """sha256 of one input file's bytes."""
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    """sha256 of one input file's text, with line endings made the same on every platform."""
+    return hashlib.sha256(text_bytes(path)).hexdigest()
 
 
 def traces_sha256() -> str:
@@ -225,7 +231,7 @@ def traces_sha256() -> str:
     digest = hashlib.sha256()
     for path in sorted((RESULTS / "traces").glob("partA_*.json")):
         digest.update(path.name.encode("utf-8"))
-        digest.update(path.read_bytes())
+        digest.update(text_bytes(path))
     return digest.hexdigest()
 
 
@@ -343,10 +349,24 @@ def arena_data() -> dict:
             "runs": arena_runs(), "summary": arena_summary(), "paper": paper_blocking()}
 
 
+# ---- Code Lab: settings the page needs ----------------------------------------------------------
+LAB_PY = ROOT / "quantumlab" / "py"
+BROWSER_ENGINE_FILES = ["__init__", "core", "model", "fidelity", "heuristic", "sim", "stats"]  # same list as codelab-worker.js
+CODELAB_SEEDS = 10  # browser speed: 30 paired seeds would make each run too slow in Pyodide
+
+
+def codelab_data() -> dict:
+    """Setup for the Code Lab (same SimConfig and n_spec as Part A) and hashes of every file the browser runs."""
+    py_hashes = {p.relative_to(LAB_PY).as_posix(): file_sha256(p) for p in sorted(LAB_PY.rglob("*.py"))}
+    engine = {f"{n}.py": file_sha256(ROOT / "src" / "qmp" / f"{n}.py") for n in BROWSER_ENGINE_FILES}
+    return {"meta": {**meta(), "py_files_sha256": py_hashes, "browser_engine_files_sha256": engine},
+            "config": {**SMALL, "n_spec": calibrated_n_spec()}, "seeds": CODELAB_SEEDS, "q_values": ARENA_Q}
+
+
 def build_all() -> dict:
     """Every exported file by name. The test re-runs this and compares with the committed files."""
     return {"fig1_steps.json": fig1_steps(), "rushhour.json": rushhour(), "fidelity.json": fidelity_data(),
-            "arena.json": arena_data()}
+            "arena.json": arena_data(), "codelab.json": codelab_data()}
 
 
 if __name__ == "__main__":

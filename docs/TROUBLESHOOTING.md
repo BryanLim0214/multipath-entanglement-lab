@@ -66,3 +66,17 @@
 **Fix in `tools/run_safe.ps1`.**
 - `-File` passes `-Steps a,b` as the single string `"a,b"`. The runner now splits it.
 - An unknown step name aborts the run. Before, it started a bare `python` that waited for input forever.
+
+## Part B stopped part-way after its runner window was closed (2026-11-18)
+
+**Symptom.** Part B stopped at 150 of 320 packet-loss runs, with no error in its log. About 58 orphaned QuNetSim processes were left behind.
+
+**Cause.**
+- `tools/run_safe.ps1` pipes each step's output into its log file.
+- We stopped that PowerShell process while Part B was still running. That broke the pipe, so the next progress line raised an error and ended the run.
+
+**Fix.**
+- Progress lines now go through `say()`, which drops a message instead of failing when the pipe is gone.
+- `run_partB.py --resume` keeps every run already saved in `results/partB_partial.jsonl` and runs only the missing ones. `run_safe.ps1 -Steps partBresume` does the same.
+
+**Rule.** Never stop a `run_safe.ps1` window while one of its steps is running. Wait for its `END` line in `results/logs/status.txt`.

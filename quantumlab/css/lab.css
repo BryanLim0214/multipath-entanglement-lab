@@ -277,6 +277,18 @@ tr.is-selected { background: var(--rule); }
 .chart .paper-dot { fill: var(--paper); stroke: var(--ink); stroke-width: 2; }
 .swatch-sp { background: var(--sp); border-color: var(--sp); }
 
+/* Code Lab */
+.editor { display: flex; border: 1px solid var(--ink); border-radius: 2px; background: var(--paper); max-width: 100ch; margin: 0 0 8px; }
+.editor .gutter { margin: 0; padding: 8px 8px 24px; font-family: var(--font-mono); font-size: 14px; line-height: 20px; color: var(--muted); text-align: right; border-right: 1px solid var(--rule); overflow: hidden; min-width: 4ch; height: 400px; user-select: none; }
+.editor textarea.code { flex: 1 1 auto; min-width: 0; height: 400px; margin: 0; padding: 8px; border: 0; resize: none; background: var(--paper); color: var(--ink); font-family: var(--font-mono); font-size: 14px; line-height: 20px; white-space: pre; overflow: auto; tab-size: 4; }
+.code-view { font-family: var(--font-mono); font-size: 14px; line-height: 20px; border: 1px solid var(--rule); border-radius: 2px; padding: 8px 16px; max-width: 100ch; overflow-x: auto; white-space: pre; }
+table.diff { max-width: none; }
+table.diff td.code-cell { font-family: var(--font-mono); font-size: 14px; white-space: pre; vertical-align: top; }
+table.diff tr.is-diff td { border-bottom-color: var(--warn); }
+table.diff tr.is-diff td:first-child { border-left: 4px solid var(--warn); font-weight: 700; }
+details.api { margin: 0 0 16px; max-width: 70ch; }
+details.api summary { cursor: pointer; font-weight: 700; }
+
 /* Step list for the Fig. 1 debugger */
 .step-count { font-family: var(--font-mono); font-size: 14px; color: var(--muted); }
 .alpha-list { list-style: none; padding: 0; margin: 0 0 16px; }

@@ -1,0 +1,43 @@
+{
+  "meta": {
+    "engine_commit": "a8a2f2080a89f5c1b2cc5999c9908eea39b200dc",
+    "engine_source_sha256": "c78ba24c54ad207db9c3899f022cf80268d4008f9465862f4746349fd171a974",
+    "py_files_sha256": {
+      "codelab_adapter.py": "174d318f0a6c6f5bd335d186e6a5ef083b2a00a2c0e8c80e211cdb37793c6cd1",
+      "skeletons/c1.py": "68c502b21ba08abcd9aebced7d2669958408290c60dda2f1df2dd7450ad5c84c",
+      "skeletons/c2.py": "a1c6983122981dfd500cd9885583e6f783714ad180d743f7523281247ab19ff9",
+      "skeletons/c3.py": "42e3dd1000a22ad70fdc978c2e28457db8d45820222bd03c8f91d61a2151b3bf",
+      "solutions/c1.py": "da8a4a00d90450f13a18f1f8392712f3fdef12256ab76715c77023769eafa9e3",
+      "solutions/c2.py": "48bccf3dc0695b257a75720d43590670527cfb8500a6151b3e1a931f4ea3e559",
+      "solutions/c3.py": "b895d417b07d34d09063fd28b4fc3e1f215af3c1f4c237ad767e2e9743ace853",
+      "templates/lazy_walker.py": "d541aa9ee0df024b92a594a43e3036de056655a8c4ea79e5ed6435ca8b80db9a",
+      "templates/splitter.py": "211fa12e8dd6ec2ef8cef643c08c2b79647d72e052c14fdf5ce1e8791ad2bf5d"
+    },
+    "browser_engine_files_sha256": {
+      "__init__.py": "9a5d0176f32e2a3c62fa85c066ea030165b36620a3f1d2928a30718f4da43bdb",
+      "core.py": "48bf943168e2a4ffa3ff0af4b2c5c6597668cc3012d0c904faef5b8c866f881e",
+      "model.py": "cad45831b1ccfae8052a35546ce6c69db1c7f9b425c3820ccbdc3b7bd0a3d34c",
+      "fidelity.py": "753b0fa4bdccf75e538f79f3840d25b034839da3253838090cc61c7e75d2872b",
+      "heuristic.py": "5e306a1106f33b0258021bf08ce775081fad4247892caa91ccedd24124d3bbf8",
+      "sim.py": "2b2e01ac6c2342573cc7b3c416df6a204281490bd80ef2265e89c0467555fd18",
+      "stats.py": "430fb9f0cfe8454521f353313435843c022a573a118624c33bbc55f3c58a0238"
+    }
+  },
+  "config": {
+    "rows": 3,
+    "cols": 3,
+    "R": 60,
+    "M": 6,
+    "T": 100,
+    "tc": 10,
+    "F": 0.95,
+    "f": 0.78,
+    "n_spec": "uniform:2:2"
+  },
+  "seeds": 10,
+  "q_values": [
+    0.5,
+    0.7,
+    0.9
+  ]
+}

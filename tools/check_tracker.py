@@ -7,6 +7,8 @@ so a "PASS" can never be a word someone typed.
 import datetime as dt
 import hashlib
 import subprocess
+
+CMD_TIMEOUT = 1200   # seconds per check command (run_all.py --quick is the longest)
 import sys
 from pathlib import Path
 
@@ -52,7 +54,10 @@ def run_check(item, cfg):
         cmd = check["cmd"]
         if cmd.startswith("python "):
             cmd = f'"{sys.executable}" ' + cmd[len("python "):]
-        r = subprocess.run(cmd, cwd=ROOT, shell=True, capture_output=True, text=True)
+        try:   # a command that never ends must not hang the tracker or CI
+            r = subprocess.run(cmd, cwd=ROOT, shell=True, capture_output=True, text=True, timeout=CMD_TIMEOUT)
+        except subprocess.TimeoutExpired:
+            return False, f"timed out after {CMD_TIMEOUT} s"
         tail = (r.stdout + r.stderr).strip().splitlines()[-1:] or [""]
         return r.returncode == 0, f"exit {r.returncode}: {tail[0][:80]}"
     if "manual" in check:
