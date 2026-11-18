@@ -115,32 +115,39 @@ def summary(df, s, an, to):
 
 
 def figure(s, an):
-    """F3: (a) two-branch n=4 success vs q, (b) grid SP vs MP."""
+    """F3: (a) two-branch n=4 success vs q, (b) grid SP vs MP, (c) grid under the simulator's packet drop (E4)."""
     plt.style.use(str(ROOT / "figures" / "qmp.mplstyle"))
-    fig, (a, b) = plt.subplots(1, 2, figsize=(7.16, 2.5))
+    fig, (a, b, c) = plt.subplots(1, 3, figsize=(7.16, 2.4), gridspec_kw={"width_ratios": [1.15, 1.15, 0.9]})
+    label = lambda m: "Multipath" if m == "MP" else "Single-path"
     two = s[(s.experiment == "E2") & (s.n.astype(str) == "4")]
     for method, color in (("SP", SP_COLOR), ("MP", MP_COLOR)):
         d = two[two.method == method].sort_values("q")
         a.errorbar(d.q, d.sr_mean, yerr=d.sr_half, color=color, marker="o", ms=3, capsize=2)
         z = an[(an.experiment == "E2") & (an.method == method) & (an.n == 4)].sort_values("q")
         a.plot(z.q, z.analytic, color="black", lw=0.6)
-        a.text(d.q.iloc[-1] + 0.01, d.sr_mean.iloc[-1], f"{'Multipath' if method == 'MP' else 'Single-path'}",
-               color=color, va="center", fontsize=8)
+        a.text(d.q.iloc[-1] + 0.01, d.sr_mean.iloc[-1], label(method), color=color, va="center", fontsize=7)
     a.text(0.5, 0.97, "thin black: analytic", fontsize=7, color="#333333", va="top")
-    a.set_title("(a) Two-branch network, n = 4, M = 4")
-    for ax, ttl in ((b, "(b) 3x3 grid, 4 requests per window, M = 6"),):
-        grid = s[s.experiment == "E3"]
-        for method, color in (("SP", SP_COLOR), ("MP", MP_COLOR)):
-            d = grid[grid.method == method].sort_values("q")
-            ax.errorbar(d.q, d.sr_mean, yerr=d.sr_half, color=color, marker="o", ms=3, capsize=2)
-            ax.text(d.q.iloc[-1] + 0.01, d.sr_mean.iloc[-1], "Multipath" if method == "MP" else "Single-path",
-                    color=color, va="center", fontsize=8)
-        ax.set_title(ttl)
+    a.set_title("(a) Two-branch, n = 4, M = 4")
+    grid = s[s.experiment == "E3"]
+    for method, color in (("SP", SP_COLOR), ("MP", MP_COLOR)):
+        d = grid[grid.method == method].sort_values("q")
+        b.errorbar(d.q, d.sr_mean, yerr=d.sr_half, color=color, marker="o", ms=3, capsize=2)
+        b.text(d.q.iloc[-1] + 0.01, d.sr_mean.iloc[-1], label(method), color=color, va="center", fontsize=7)
+    b.set_title("(b) 3x3 grid, M = 6")
     for ax in (a, b):
         ax.set_xlabel("link success probability q")
+        ax.set_xlim(0.47, 1.06)
+    loss = s[(s.experiment == "E4") & (s.topology == "grid")]
+    for method, color, dy in (("SP", SP_COLOR, 0.10), ("MP", MP_COLOR, -0.09)):
+        d = loss[loss.method == method].sort_values("drop_rate")
+        c.errorbar(d.drop_rate, d.sr_mean, yerr=d.sr_half, color=color, marker="o", ms=3, capsize=2)
+        c.text(0.25, d.sr_mean.iloc[2] + dy, label(method), color=color, va="center", ha="center", fontsize=7)
+    c.set_title("(c) 3x3 grid, packet drop, q = 1")
+    c.set_xlabel("simulator packet drop rate")
+    c.set_xlim(-0.02, 0.32)
+    for ax in (a, b, c):
         ax.set_ylim(0, 1.02)
-        ax.set_xlim(0.47, 1.0)
-    a.set_ylabel("request success rate (mean, 95% CI)")
+    a.set_ylabel("request success rate")
     fig.tight_layout()
     for ext in ("png", "pdf"):
         fig.savefig(ROOT / "figures" / f"F3_partB_success.{ext}")
@@ -189,6 +196,11 @@ def macros(df, s, an, to):
     add("pbTimeouts", int(to.timeouts.sum()))
     add("pbTimeoutsFour", int(to[to.experiment == "E4"].timeouts.sum()))
     add("pbSeeds", int(df.seed.nunique()))
+    cc = ROOT / "results" / "partB_crosscheck.csv"
+    if cc.is_file():   # QuNetSim's own swap with our routes installed (run_partB.py --crosscheck)
+        x = pd.read_csv(cc)
+        add("pbCrossOk", int(x.correlated.sum()))
+        add("pbCrossTotal", len(x))
     (ROOT / "report" / "partB.tex").write_text("\n".join(out) + "\n", encoding="utf-8")
 
 

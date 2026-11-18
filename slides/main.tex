@@ -126,11 +126,11 @@ Paper & \paperBRSPILPqNine & \paperBRMPILPqNine \\
 
 \begin{frame}{Part B: the same question in QuNetSim}
 \begin{itemize}
-\item Real QuNetSim hosts: pairs created with \texttt{send\_epr}, Bell measurements at middle nodes, two classical bits, Pauli corrections. All \pbCorrelated{} delivered pairs checked out.
-\item Each link has $M$ attempts per round with success chance $q$, shared by all requests (A22).
-\item Single path: QuNetSim's own router. Multipath: 2 link-disjoint paths. 20 seeds per setting.
+\item Real swaps: \texttt{send\_epr}, Bell measurement, two classical bits, Pauli fix. All \pbCorrelated{} pairs correlated.
+\item $M$ attempts per link per round, chance $q$, shared by all requests (A22). 20 seeds.
+\item (a, b) Multipath wins when capacity is short. (c) Under packet drop it does not: its second path can be longer.
 \end{itemize}
-\centering\includegraphics[width=0.8\textwidth]{F3_partB_success.pdf}
+\centering\includegraphics[width=\textwidth,height=0.52\textheight,keepaspectratio]{F3_partB_success.pdf}
 \end{frame}
 
 \begin{frame}{Extension: keep a spare seat, except on your last chance}

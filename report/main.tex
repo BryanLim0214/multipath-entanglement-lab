@@ -175,7 +175,7 @@ Time (s), MP-ILP, $q=0.5$ & \paperTimeMPILPqFive & \runtimeMPILPqFive & other so
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{F3_partB_success.pdf}
-\caption{Part B in QuNetSim: request success rate, mean and 95\% CI over 20 seeds. (a) Two-branch network with the exact binomial prediction (thin black). (b) $3\times3$ grid with four requests per window competing for the same links.}
+\caption{Part B in QuNetSim: request success rate, mean and 95\% CI over 20 seeds. (a) Two-branch network with the exact binomial prediction (thin black). (b) $3\times3$ grid with four requests per window competing for the same links. (c) The grid under the simulator's own packet drop, with $q=1$ so that loss is the only cause of failure.}
 \label{fig:f3}
 \end{figure*}
 Two readings of the request model would load the network more:
@@ -237,13 +237,13 @@ Every end-to-end pair is built hop by hop with real QuNetSim calls:
 \end{itemize}
 Both ends then measure in Z or X. All \pbCorrelated{} of the \pbDelivered{} delivered pairs gave matching outcomes.
 
-\textbf{Link failure.} QuNetSim's own loss settings never affect EPR pairs, and injecting a failure inside its swap crashed it. We therefore give each link $M$ attempts per window, each landing with probability $q$ (A22). The attempts are shared by every request and path that uses the link, so multipath gets no extra attempts, only more of the network.
+\textbf{Link failure.} QuNetSim's per-link loss model never affects EPR pairs, its global packet drop rate also discards classical messages and acknowledgements, and injecting a failure inside its swap crashed it. We therefore give each link $M$ attempts per window, each landing with probability $q$ (A22). The attempts are shared by every request and path that uses the link, so multipath gets no extra attempts, only more of the network.
 
-\textbf{Routing.} Single path uses QuNetSim's default router (a shortest path). Multipath uses $k=2$ link-disjoint paths and splits the pairs evenly. Requests are served one after another, because concurrent sends between the same hosts mix up their qubits (QuNetSim issue 170). A request succeeds only if all $n$ pairs arrive before a link on their route runs out of attempts. Each setting uses \pbSeeds{} seeds, with the same dice for single path and multipath.
+\textbf{Routing.} Single path uses QuNetSim's default router (a shortest path). Multipath uses $k=2$ link-disjoint paths and splits the pairs evenly. Requests are served one after another, because concurrent sends between the same hosts mix up their qubits (QuNetSim issue 170). A request succeeds only if all $n$ pairs arrive before a link on their route runs out of attempts. Each setting uses \pbSeeds{} seeds, with the same dice for single path and multipath. Separately, we run the handout's loss sweep with the simulator's own drop rate (E4).
 
 
 \subsection{Results}
-\textbf{The wiring is right.} On the chain at $q=1$ every request succeeds. On the chain and the two-branch network, success has a closed form: a link that must carry $m$ pairs needs at least $m$ landings in $M$ attempts, which is a binomial tail. In \pbAnalyticInside{} of \pbAnalyticTotal{} settings, the exact value lies inside the 95\% Wilson interval of the simulated rate (Fig.~\ref{fig:f3}a).
+\textbf{The wiring is right.} On the chain at $q=1$ every request succeeds. On the chain and the two-branch network, success has a closed form: a link that must carry $m$ pairs needs at least $m$ landings in $M$ attempts, which is a binomial tail. In \pbAnalyticInside{} of \pbAnalyticTotal{} settings, the exact value lies inside the 95\% Wilson interval of the simulated rate (Fig.~\ref{fig:f3}a). With QuNetSim's built-in swap and our multipath routes installed as its router, \pbCrossOk{} of \pbCrossTotal{} pairs were correlated, so our hand-built swap is not hiding a fault.
 
 \textbf{Multipath succeeds more often.}
 \begin{itemize}
@@ -253,6 +253,8 @@ Both ends then measure in Z or X. All \pbCorrelated{} of the \pbDelivered{} deli
 \end{itemize}
 
 \textbf{The price.} Multipath uses more attempts per request: \pbattThreeGridMPnVarqFive{} against \pbattThreeGridSPnVarqFive{} on the grid at $q=0.5$. Pairs on a path that fails part-way are wasted.
+
+\textbf{Packet loss does not favour multipath} (Fig.~\ref{fig:f3}c). With $q=1$ and the simulator's drop rate at 0.1, single path succeeds in \pbFourGridSPnVardOne{} of grid requests and multipath in \pbFourGridMPnVardOne. For half of the grid's node pairs the second disjoint path is two links longer, and every extra link adds packets that can be lost. On the two-branch network both routes have three links, so the two methods send the same packets and give identical results (\pbFourBranchMPnTwodOne{} at 0.1). Success falls far faster than the drop rate, because each pair needs several packets: the EPR halves, their acknowledgements and the correction bits. Multipath helps when link capacity is short, not when every packet risks loss.
 
 \subsection{How Part B differs from Part A}
 The ranking matches Part A, but the numbers are not comparable, for four reasons:

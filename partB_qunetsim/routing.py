@@ -70,7 +70,7 @@ def crosscheck_native_swap(net, hosts, paths, rounds=5):
             q_id, ack = hosts[source].send_epr(dest, await_ack=True)
             q1 = hosts[source].get_epr(dest, q_id, wait=10)
             q2 = hosts[dest].get_epr(source, q_id, wait=10)
-            basis = "Z" if i % 2 == 0 else "X"
+            basis = "Z" if (i // len(paths)) % 2 == 0 else "X"   # every path sees both bases
             ok = bool(ack) and q1 is not None and q2 is not None
             if ok:
                 if basis == "X":
@@ -78,6 +78,6 @@ def crosscheck_native_swap(net, hosts, paths, rounds=5):
                     q2.H()
                 ok = q1.measure() == q2.measure()
             rows.append((dispenser.handed[-1], basis, ok))
-    finally:
-        net.quantum_routing_algo, net.use_ent_swap = old_algo, old_swap
+    finally:   # the setter rejects QuNetSim's own default (network.py:117-124), so restore the private field
+        net._quantum_routing_algo, net.use_ent_swap = old_algo, old_swap
     return rows
