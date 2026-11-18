@@ -4,6 +4,7 @@
 \graphicspath{{../figures/}}
 \IfFileExists{../report/numbers.tex}{\input{../report/numbers.tex}}{}
 \IfFileExists{../report/sensitivity.tex}{\input{../report/sensitivity.tex}}{}
+\IfFileExists{../report/partB.tex}{\input{../report/partB.tex}}{}
 
 % Plain look: no navigation symbols, no shading, one accent color shared with the figures.
 \definecolor{ink}{HTML}{1C1C1C}
@@ -100,21 +101,36 @@
 \end{frame}
 
 \begin{frame}{Why are our blocking levels lower?}
-% Filled in from report/sensitivity.tex after the 30-seed sensitivity run.
+\begin{columns}[T]
+\column{0.48\textwidth}
 \begin{itemize}
 \item Two readings of the request model are open: arrival \emph{gaps} instead of arrival times, and $n$ pairs \emph{per slot} instead of per round.
-\item We tested both after Part A was frozen, with the same seeds and methods.
+\item We tested both after Part A was frozen, with the same \sensSeeds{} seeds.
+\item \textbf{Per slot} lands near the paper's levels. \textbf{Gaps} does not: it blocks requests that never arrive in time.
+\item Multipath is never worse under any reading.
 \end{itemize}
+\column{0.5\textwidth}
+\small
+\begin{tabular}{@{}lcc@{}}
+\toprule
+At $q=0.9$ & SP-ILP & MP-ILP \\
+\midrule
+Ours & \brSPILPqNine & \brMPILPqNine \\
+Gaps & \sensBRGapsSPILPqNine & \sensBRGapsMPILPqNine \\
+Per slot & \sensBRPerSlotSPILPqNine & \sensBRPerSlotMPILPqNine \\
+Paper & \paperBRSPILPqNine & \paperBRMPILPqNine \\
+\bottomrule
+\end{tabular}
+\end{columns}
 \end{frame}
 
 \begin{frame}{Part B: the same question in QuNetSim}
-% Filled in from results/partB_summary.md once Part B has finished.
 \begin{itemize}
-\item Real QuNetSim hosts: pairs created with \texttt{send\_epr}, Bell measurements at middle nodes, two classical bits, Pauli corrections.
+\item Real QuNetSim hosts: pairs created with \texttt{send\_epr}, Bell measurements at middle nodes, two classical bits, Pauli corrections. All \pbCorrelated{} delivered pairs checked out.
 \item Each link has $M$ attempts per round with success chance $q$, shared by all requests (A22).
-\item Single path: QuNetSim's own shortest-path router. Multipath: up to $k$ link-disjoint paths.
-\item Three networks: chain (sanity check), two branches (exact formula to compare against), $3\times3$ grid. 20 seeds per setting.
+\item Single path: QuNetSim's own router. Multipath: 2 link-disjoint paths. 20 seeds per setting.
 \end{itemize}
+\centering\includegraphics[width=0.8\textwidth]{F3_partB_success.pdf}
 \end{frame}
 
 \begin{frame}{Extension: keep a spare seat, except on your last chance}
