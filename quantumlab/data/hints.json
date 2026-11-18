@@ -1,0 +1,158 @@
+{
+  "ch1-coins": {
+    "title": "Find when the two coins always agree",
+    "breaks": "Real coins have a hidden answer from the start. Bell pairs do not. You also cannot send a message with them, because each side alone only sees random results.",
+    "levels": [
+      {
+        "kid": "Which dial settings could make the two coins agree every time?",
+        "student": "Compare two runs: both cities on the same dial, then the two cities on different dials."
+      },
+      {
+        "kid": "Coins asked the same question give the same answer.",
+        "student": "When both cities measure in the same basis, their results match every time. Run the flips with both dials on Z, then both on X."
+      },
+      {
+        "kid": "Put both dials on the same letter and flip. Then put them on different letters and flip again.",
+        "student": "Same basis should give 20 agreements out of 20. Z against X should give about 10, and the 10 change from run to run. The two dial controls are outlined."
+      },
+      {
+        "kid": "Watch the table fill in for both dial settings, one after the other.",
+        "student": "The page runs 20 flips with Z and Z, then 20 with Z and X. Your own runs stay in the table so you can compare."
+      },
+      {
+        "kid": "Same letters always agree, and different letters agree about half the time, like tossing a fair coin.",
+        "student": "For the pair (|00⟩ + |11⟩)/√2, equal bases give equal results every time. Mixed bases give independent 50/50 results."
+      }
+    ]
+  },
+  "ch2-links": {
+    "title": "See how many seats a road gets in 30 rounds",
+    "breaks": "Real attempts take time and hardware. Here a whole round happens in one step.",
+    "levels": [
+      {
+        "kid": "If each plane lands 8 times out of 10, how many of 6 planes would you expect to land?",
+        "student": "Expected seats are M times q. Try q = 0.8 and compare the tallest bar with that number."
+      },
+      {
+        "kid": "Each road throws 6 planes, and each plane lands on its own.",
+        "student": "The seats on one road follow Binomial(6, q), so the tallest bars sit near 6 times q."
+      },
+      {
+        "kid": "Set the slider to 0.8, press Run 30 rounds, and look for the tallest blue bar.",
+        "student": "At q = 0.8 the exact bars peak at 5 seats (about 0.39) and 6 seats (about 0.26). With only 120 roads in the run, the blue bars wobble around the outlined bars. The slider is outlined."
+      },
+      {
+        "kid": "Watch the page throw 30 rounds of planes and count the seats on each road.",
+        "student": "The page runs 30 rounds with a fixed seed. Compare each blue bar with the outlined exact bar next to it."
+      },
+      {
+        "kid": "The page ran 30 rounds, and the blue bars land near the outlined ones.",
+        "student": "Each road's seats follow Binomial(6, q), so with more rounds the blue bars settle onto the outlined bars."
+      }
+    ]
+  },
+  "ch3-swap": {
+    "title": "Make cities A and D share a pair they can use",
+    "breaks": "The middle city's coins are used up by the join. The end pair is unusable until the phone call arrives.",
+    "levels": [
+      {
+        "kid": "After B joins its two coins, can A and D use their pair right away?",
+        "student": "Think about what A and D still do not know about the joined result."
+      },
+      {
+        "kid": "B has to tell A and D how the join turned out.",
+        "student": "The swap is a Bell-state measurement at B. Its outcome is a classical message that A and D need before they can fix their qubits."
+      },
+      {
+        "kid": "Press Join at B first. Then press Phone A and D.",
+        "student": "The join is a quantum step at B. The phone call is the classical step, and the arc stays grey until it arrives. The two buttons are outlined."
+      },
+      {
+        "kid": "Watch B join, then watch the message travel to A and D.",
+        "student": "The page does the join, then sends the classical message from B to both ends. The arc turns usable only after the message arrives."
+      },
+      {
+        "kid": "B joined its two coins, then phoned A and D, and now their pair is usable.",
+        "student": "A and D needed B's measurement result to correct their qubits, so the pair counted only after the call."
+      }
+    ]
+  },
+  "ch4-fidelity": {
+    "title": "Add middle cities until the meter turns red",
+    "breaks": "The grey is random noise, not a copy, because quantum states cannot be copied. Real swaps also add noise of their own, which this model ignores.",
+    "levels": [
+      {
+        "kid": "How many middle cities do you think a pair can pass through before it is too washed out?",
+        "student": "Each swap lowers fidelity. Guess where the meter crosses the line at 0.78."
+      },
+      {
+        "kid": "Every join mixes in a little grey paint.",
+        "student": "Fidelity falls with each link as F_L = (3 w^L + 1) / 4, so the meter drops fast once there are several links."
+      },
+      {
+        "kid": "Keep pressing Add a middle city and watch the number and the line.",
+        "student": "With F = 0.95, the path has L links, one more than the middle cities. L = 5 still gives 0.78 or more, and L = 6 gives 0.75. The Add button is outlined."
+      },
+      {
+        "kid": "Watch the page add cities one at a time until the meter turns red.",
+        "student": "The page adds middle cities until the fidelity drops below 0.78, which happens at 5 middle cities."
+      },
+      {
+        "kid": "Four middle cities are fine, and the fifth one washes the pair out.",
+        "student": "With F = 0.95, 5 links give 0.781 and 6 links give 0.746, so the limit at f = 0.78 is 4 middle cities."
+      }
+    ]
+  },
+  "ch5-rush": {
+    "title": "Serve as many requests as the best possible answer",
+    "breaks": "A pair is never cut in half. Each pair travels whole, on a single route.",
+    "levels": [
+      {
+        "kid": "Which road has the fewest seats, and which request needs it?",
+        "student": "A request needs its pairs on every link of its route, so look at the weakest link first."
+      },
+      {
+        "kid": "A road can carry only as many pairs as its weakest link.",
+        "student": "A route's capacity is the smallest seat count along it. When one road is not enough, split the request over roads that share no link."
+      },
+      {
+        "kid": "Draw the request with the fewest options first, and read what the referee says.",
+        "student": "The shortest roads often take seats another request needs. Try a longer road for a request that has spare choices. The cities of the request you are drawing are outlined."
+      },
+      {
+        "kid": "Watch the best answer drawn in green, with your roads still on screen.",
+        "student": "The green roads come from the exact solver, qmp.ilp.solve_path, run on this instance in the current mode."
+      },
+      {
+        "kid": "The best answer is drawn for you, and it serves as many requests as any legal answer can.",
+        "student": "The exact solver tries every legal choice of roads, so no answer under these rules serves more requests."
+      }
+    ]
+  },
+  "fig1-walk": {
+    "title": "Predict the walk, then step through it",
+    "breaks": "The paper prints alpha 3 as 4/2, but the rule that matches its other values gives 3/2. The chosen path does not change.",
+    "levels": [
+      {
+        "kid": "From city 7, which neighbour looks best, the one with the better seats-per-step score?",
+        "student": "Compare the score for city 1 with the score for city 8: the larger fraction wins."
+      },
+      {
+        "kid": "Each neighbour gets a score: seats on the bottleneck, divided by steps to go.",
+        "student": "alpha_i = min(seats on link k-i, best bottleneck from i to the destination) divided by the hops from i. The walk picks the largest alpha."
+      },
+      {
+        "kid": "City 1 scores 4/3 and city 8 scores 4/2. Which fraction is larger?",
+        "student": "4/2 is 2 and 4/3 is about 1.33, so the walk goes to city 8. The two neighbours of city 7 are outlined."
+      },
+      {
+        "kid": "Watch the walk go one step at a time, with the scores shown.",
+        "student": "Step through the walk in the table of scores. The chosen neighbour is marked at each step."
+      },
+      {
+        "kid": "The walk goes 7, 8, 5, 6 first, then 7, 1, 2, 4, 6 second, and splits the 4 pairs as 2 and 2.",
+        "student": "Each path has a bottleneck of 4 seats, and the spare-seat rule lets a request use half of them, which is 2 pairs per path."
+      }
+    ]
+  }
+}

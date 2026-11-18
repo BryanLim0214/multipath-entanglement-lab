@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>QuantumLab: multipath entanglement distribution</title>
+  <meta name="description" content="An interactive companion to the lab project on multipath entanglement distribution (Halder, Matus, Fettweis, GLOBECOM 2024).">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="preload" href="vendor/fonts/atkinson-hyperlegible-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/lab.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./vendor/three/build/three.module.js",
+        "three/addons/": "./vendor/three/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="site-title" href="#/">QuantumLab</a>
+    <nav class="site-nav" aria-label="Rooms">
+      <a href="#/story/1" data-route="story/1">1 Two questions</a>
+      <a href="#/story/2" data-route="story/2">2 Planes and rivers</a>
+      <a href="#/story/3" data-route="story/3">3 The matchmaker</a>
+      <a href="#/story/4" data-route="story/4">4 Paint mixing</a>
+      <a href="#/story/5" data-route="story/5">5 Rush hour</a>
+      <a href="#/fig1" data-route="fig1">Fig. 1 debugger</a>
+    </nav>
+    <div class="site-settings">
+      <label><input type="checkbox" id="reduce-motion">Reduce motion</label>
+      <button class="btn btn-small" type="button" id="theme-button">Theme: match system</button>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <noscript>
+      <p class="error-box">QuantumLab needs JavaScript to draw its 3D scenes and run its checks. Please turn JavaScript on and reload.</p>
+    </noscript>
+
+    <section id="view-landing" hidden aria-labelledby="landing-title">
+      <div class="hero">
+        <h1 id="landing-title">QuantumLab</h1>
+        <p>QuantumLab explains the ideas in our lab project, which reproduces the GLOBECOM 2024 paper on multipath entanglement distribution by Halder, Matus and Fettweis. It is a teaching companion by Panhapiseth Lim and Victor Akinmade at UTPB. It is not graded work.</p>
+        <h2>How to use it</h2>
+        <ul>
+          <li>Each page asks you to do one thing: flip coins, drag a slider, press a button, or click cities.</li>
+          <li>Before each run you make a guess. The page then tells you whether you were right.</li>
+          <li>Every idea has a kid line and a student line. The "?" button shows the expert line and where the simple picture stops being true.</li>
+          <li>Stuck? Press the help button, or the H key, to climb five levels of help: nudge, hint, stronger hint, show me, do it for me. Asking for help costs nothing.</li>
+          <li>Drag the 3D picture to turn it, scroll to zoom. Your progress is saved only in this browser.</li>
+        </ul>
+      </div>
+      <h2>Rooms</h2>
+      <ul class="room-list" id="room-list"></ul>
+    </section>
+
+    <div id="view-lab" class="lab" hidden>
+      <div class="narrative" id="narrative"></div>
+      <div class="stage-col">
+        <div class="stage" id="stage"></div>
+        <div class="btn-row"><button class="btn btn-small" type="button" id="reset-view">Reset view</button></div>
+        <div class="stage-extra" id="stage-extra"></div>
+      </div>
+    </div>
+
+    <p id="load-error" class="error-box" hidden role="alert"></p>
+  </main>
+
+  <div id="live" class="sr-only" aria-live="polite"></div>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

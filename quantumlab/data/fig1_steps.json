@@ -1,0 +1,385 @@
+{
+  "meta": {
+    "engine_commit": "945a918b42c9e466656ef4adf5b38a694d36c9ae",
+    "engine_source_sha256": "56693701d86880f4baac608954e91154c362d4ec44d89080ddb0dd325e2f6223"
+  },
+  "request": {
+    "s": 7,
+    "d": 6,
+    "n": 4,
+    "delta": 2,
+    "max_mid": 4,
+    "f": 0.78
+  },
+  "tie_break": "lowest id",
+  "random_tie_note": "With random ties the walk may pick 9 instead of 5 at city 8; the second path and the 2 + 2 split do not change.",
+  "links": [
+    {
+      "a": 1,
+      "b": 2,
+      "seats": 6
+    },
+    {
+      "a": 1,
+      "b": 3,
+      "seats": 2
+    },
+    {
+      "a": 1,
+      "b": 7,
+      "seats": 4
+    },
+    {
+      "a": 2,
+      "b": 3,
+      "seats": 3
+    },
+    {
+      "a": 2,
+      "b": 4,
+      "seats": 4
+    },
+    {
+      "a": 3,
+      "b": 5,
+      "seats": 4
+    },
+    {
+      "a": 3,
+      "b": 8,
+      "seats": 3
+    },
+    {
+      "a": 4,
+      "b": 5,
+      "seats": 5
+    },
+    {
+      "a": 4,
+      "b": 6,
+      "seats": 4
+    },
+    {
+      "a": 5,
+      "b": 6,
+      "seats": 4
+    },
+    {
+      "a": 5,
+      "b": 8,
+      "seats": 8
+    },
+    {
+      "a": 6,
+      "b": 9,
+      "seats": 7
+    },
+    {
+      "a": 7,
+      "b": 8,
+      "seats": 5
+    },
+    {
+      "a": 8,
+      "b": 9,
+      "seats": 4
+    }
+  ],
+  "steps": [
+    {
+      "kind": "choose",
+      "path_no": 1,
+      "at": 7,
+      "so_far": [
+        7
+      ],
+      "candidates": [
+        {
+          "node": 1,
+          "num": 4,
+          "den": 3,
+          "link_seats": 4,
+          "route_bottleneck": 4
+        },
+        {
+          "node": 8,
+          "num": 4,
+          "den": 2,
+          "link_seats": 5,
+          "route_bottleneck": 4
+        }
+      ],
+      "tied": [
+        8
+      ],
+      "chosen": 8
+    },
+    {
+      "kind": "choose",
+      "path_no": 1,
+      "at": 8,
+      "so_far": [
+        7,
+        8
+      ],
+      "candidates": [
+        {
+          "node": 3,
+          "num": 3,
+          "den": 2,
+          "link_seats": 3,
+          "route_bottleneck": 4
+        },
+        {
+          "node": 5,
+          "num": 4,
+          "den": 1,
+          "link_seats": 8,
+          "route_bottleneck": 4
+        },
+        {
+          "node": 9,
+          "num": 4,
+          "den": 1,
+          "link_seats": 4,
+          "route_bottleneck": 7
+        }
+      ],
+      "tied": [
+        5,
+        9
+      ],
+      "chosen": 5
+    },
+    {
+      "kind": "found",
+      "path_no": 1,
+      "path": [
+        7,
+        8,
+        5,
+        6
+      ],
+      "bottleneck": 4,
+      "removed_links": [
+        [
+          7,
+          8
+        ],
+        [
+          5,
+          8
+        ],
+        [
+          5,
+          6
+        ]
+      ]
+    },
+    {
+      "kind": "choose",
+      "path_no": 2,
+      "at": 7,
+      "so_far": [
+        7
+      ],
+      "candidates": [
+        {
+          "node": 1,
+          "num": 4,
+          "den": 3,
+          "link_seats": 4,
+          "route_bottleneck": 4
+        }
+      ],
+      "tied": [
+        1
+      ],
+      "chosen": 1
+    },
+    {
+      "kind": "choose",
+      "path_no": 2,
+      "at": 1,
+      "so_far": [
+        7,
+        1
+      ],
+      "candidates": [
+        {
+          "node": 2,
+          "num": 4,
+          "den": 2,
+          "link_seats": 6,
+          "route_bottleneck": 4
+        },
+        {
+          "node": 3,
+          "num": 2,
+          "den": 3,
+          "link_seats": 2,
+          "route_bottleneck": 4
+        }
+      ],
+      "tied": [
+        2
+      ],
+      "chosen": 2
+    },
+    {
+      "kind": "choose",
+      "path_no": 2,
+      "at": 2,
+      "so_far": [
+        7,
+        1,
+        2
+      ],
+      "candidates": [
+        {
+          "node": 3,
+          "num": 3,
+          "den": 3,
+          "link_seats": 3,
+          "route_bottleneck": 4
+        },
+        {
+          "node": 4,
+          "num": 4,
+          "den": 1,
+          "link_seats": 4,
+          "route_bottleneck": 4
+        }
+      ],
+      "tied": [
+        4
+      ],
+      "chosen": 4
+    },
+    {
+      "kind": "found",
+      "path_no": 2,
+      "path": [
+        7,
+        1,
+        2,
+        4,
+        6
+      ],
+      "bottleneck": 4,
+      "removed_links": [
+        [
+          1,
+          7
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          2,
+          4
+        ],
+        [
+          4,
+          6
+        ]
+      ]
+    },
+    {
+      "kind": "allocation",
+      "delta": 2,
+      "sorted_paths": [
+        {
+          "path": [
+            7,
+            8,
+            5,
+            6
+          ],
+          "bottleneck": 4,
+          "seats_offered": 2
+        },
+        {
+          "path": [
+            7,
+            1,
+            2,
+            4,
+            6
+          ],
+          "bottleneck": 4,
+          "seats_offered": 2
+        }
+      ],
+      "split": [
+        {
+          "path": [
+            7,
+            8,
+            5,
+            6
+          ],
+          "pairs": 2
+        },
+        {
+          "path": [
+            7,
+            1,
+            2,
+            4,
+            6
+          ],
+          "pairs": 2
+        }
+      ]
+    },
+    {
+      "kind": "residual",
+      "links": [
+        {
+          "a": 1,
+          "b": 2,
+          "before": 6,
+          "after": 4
+        },
+        {
+          "a": 1,
+          "b": 7,
+          "before": 4,
+          "after": 2
+        },
+        {
+          "a": 2,
+          "b": 4,
+          "before": 4,
+          "after": 2
+        },
+        {
+          "a": 4,
+          "b": 6,
+          "before": 4,
+          "after": 2
+        },
+        {
+          "a": 5,
+          "b": 6,
+          "before": 4,
+          "after": 2
+        },
+        {
+          "a": 5,
+          "b": 8,
+          "before": 8,
+          "after": 6
+        },
+        {
+          "a": 7,
+          "b": 8,
+          "before": 5,
+          "after": 3
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,995 @@
+{
+  "meta": {
+    "engine_commit": "945a918b42c9e466656ef4adf5b38a694d36c9ae",
+    "engine_source_sha256": "56693701d86880f4baac608954e91154c362d4ec44d89080ddb0dd325e2f6223"
+  },
+  "spare_seat_delta": 2,
+  "instances": [
+    {
+      "id": 1,
+      "rows": 2,
+      "cols": 3,
+      "links": [
+        {
+          "a": 1,
+          "b": 2,
+          "seats": 3
+        },
+        {
+          "a": 1,
+          "b": 4,
+          "seats": 5
+        },
+        {
+          "a": 2,
+          "b": 3,
+          "seats": 2
+        },
+        {
+          "a": 2,
+          "b": 5,
+          "seats": 3
+        },
+        {
+          "a": 3,
+          "b": 6,
+          "seats": 5
+        },
+        {
+          "a": 4,
+          "b": 5,
+          "seats": 5
+        },
+        {
+          "a": 5,
+          "b": 6,
+          "seats": 2
+        }
+      ],
+      "requests": [
+        {
+          "id": 1,
+          "s": 5,
+          "d": 1,
+          "n": 2
+        },
+        {
+          "id": 2,
+          "s": 6,
+          "d": 3,
+          "n": 3
+        },
+        {
+          "id": 3,
+          "s": 3,
+          "d": 1,
+          "n": 4
+        }
+      ],
+      "solutions": {
+        "single_off": {
+          "served": 2,
+          "ilp": [
+            {
+              "request": 1,
+              "roads": [
+                {
+                  "nodes": [
+                    5,
+                    4,
+                    1
+                  ],
+                  "pairs": 2
+                }
+              ]
+            },
+            {
+              "request": 2,
+              "roads": [
+                {
+                  "nodes": [
+                    6,
+                    3
+                  ],
+                  "pairs": 3
+                }
+              ]
+            }
+          ],
+          "heuristic_served": 2,
+          "heuristic": [
+            {
+              "request": 1,
+              "roads": [
+                {
+                  "nodes": [
+                    5,
+                    4,
+                    1
+                  ],
+                  "pairs": 2
+                }
+              ]
+            },
+            {
+              "request": 2,
+              "roads": [
+                {
+                  "nodes": [
+                    6,
+                    3
+                  ],
+                  "pairs": 3
+                }
+              ]
+            }
+          ]
+        },
+        "single_spare": {
+          "served": 1,
+          "ilp": [
+            {
+              "request": 1,
+              "roads": [
+                {
+                  "nodes": [
+                    5,
+                    4,
+                    1
+                  ],
+                  "pairs": 2
+                }
+              ]
+            }
+          ],
+          "heuristic_served": 1,
+          "heuristic": [
+            {
+              "request": 1,
+              "roads": [
+                {
+                  "nodes": [
+                    5,
+                    4,
+                    1
+                  ],
+                  "pairs": 2
+                }
+              ]
+            }
+          ]
+        },
+        "split_off": {
+          "served": 3,
+          "ilp": [
+            {
+              "request": 1,
+              "roads": [
+                {
+                  "nodes": [
+                    5,
+                    4,
+                    1
+                  ],
+                  "pairs": 2
+                }
+              ]
+            },
+            {
+              "request": 2,
+              "roads": [
+                {
+                  "nodes": [
+                    6,
+                    3
+                  ],
+                  "pairs": 3
+                }
+              ]
+            },
+            {
+              "request": 3,
+              "roads": [
+                {
+                  "nodes": [
+                    3,
+                    2,
+                    1
+                  ],
+                  "pairs": 2
+                },
+                {
+                  "nodes": [
+                    3,
+                    6,
+                    5,
+                    4,
+                    1
+                  ],
+                  "pairs": 2
+                }
+              ]
+            }
+          ],
+          "heuristic_served": 3,
+          "heuristic": [
+            {
+              "request": 1,
+              "roads": [
+                {
+                  "nodes": [
+                    5,
+                    4,
+                    1
+                  ],
+                  "pairs": 2
+                }
+              ]
+            },
+            {
+              "request": 2,
+              "roads": [
+                {
+                  "nodes": [
+                    6,
+                    3
+                  ],
+                  "pairs": 3
+                }
+              ]
+            },
+            {
+              "request": 3,
+              "roads": [
+                {
+                  "nodes": [
+                    3,
+                    2,
+                    1
+                  ],
+                  "pairs": 2
+                },
+                {
+                  "nodes": [
+                    3,
+                    6,
+                    5,
+                    4,
+                    1
+                  ],
+                  "pairs": 2
+                }
+              ]
+            }
+          ]
+        },
+        "split_spare": {
+          "served": 2,
+          "ilp": [
+            {
+              "request": 1,
+              "roads": [
+                {
+                  "nodes": [
+                    5,
+                    4,
+                    1
+                  ],
+                  "pairs": 2
+                }
+              ]
+            },
+            {
+              "request": 2,
+              "roads": [
+                {
+                  "nodes": [
+                    6,
+                    3
+                  ],
+                  "pairs": 2
+                },
+                {
+                  "nodes": [
+                    6,
+                    5,
+                    2,
+                    3
+                  ],
+                  "pairs": 1
+                }
+              ]
+            }
+          ],
+          "heuristic_served": 2,
+          "heuristic": [
+            {
+              "request": 1,
+              "roads": [
+                {
+                  "nodes": [
+                    5,
+                    4,
+                    1
+                  ],
+                  "pairs": 2
+                }
+              ]
+            },
+            {
+              "request": 2,
+              "roads": [
+                {
+                  "nodes": [
+                    6,
+                    3
+                  ],
+                  "pairs": 2
+                },
+                {
+                  "nodes": [
+                    6,
+                    5,
+                    2,
+                    3
+                  ],
+                  "pairs": 1
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": 2,
+      "rows": 2,
+      "cols": 3,
+      "links": [
+        {
+          "a": 1,
+          "b": 2,
+          "seats": 4
+        },
+        {
+          "a": 1,
+          "b": 4,
+          "seats": 5
+        },
+        {
+          "a": 2,
+          "b": 3,
+          "seats": 4
+        },
+        {
+          "a": 2,
+          "b": 5,
+          "seats": 2
+        },
+        {
+          "a": 3,
+          "b": 6,
+          "seats": 4
+        },
+        {
+          "a": 4,
+          "b": 5,
+          "seats": 3
+        },
+        {
+          "a": 5,
+          "b": 6,
+          "seats": 5
+        }
+      ],
+      "requests": [
+        {
+          "id": 1,
+          "s": 5,
+          "d": 2,
+          "n": 4
+        },
+        {
+          "id": 2,
+          "s": 5,
+          "d": 6,
+          "n": 2
+        },
+        {
+          "id": 3,
+          "s": 3,
+          "d": 4,
+          "n": 2
+        }
+      ],
+      "solutions": {
+        "single_off": {
+          "served": 2,
+          "ilp": [
+            {
+              "request": 2,
+              "roads": [
+                {
+                  "nodes": [
+                    5,
+                    4,
+                    1,
+                    2,
+                    3,
+                    6
+                  ],
+                  "pairs": 2
+                }
+              ]
+            },
+            {
+              "request": 3,
+              "roads": [
+                {
+                  "nodes": [
+                    3,
+                    2,
+                    1,
+                    4
+                  ],
+                  "pairs": 2
+                }
+              ]
+            }
+          ],
+          "heuristic_served": 1,
+          "heuristic": [
+            {
+              "request": 1,
+              "roads": [
+                {
+                  "nodes": [
+                    5,
+                    6,
+                    3,
+                    2
+                  ],
+                  "pairs": 4
+                }
+              ]
+            }
+          ]
+        },
+        "single_spare": {
+          "served": 2,
+          "ilp": [
+            {
+              "request": 2,
+              "roads": [
+                {
+                  "nodes": [
+                    5,
+                    6
+                  ],
+                  "pairs": 2
+                }
+              ]
+            },
+            {
+              "request": 3,
+              "roads": [
+                {
+                  "nodes": [
+                    3,
+                    2,
+                    1,
+                    4
+                  ],
+                  "pairs": 2
+                }
+              ]
+            }
+          ],
+          "heuristic_served": 2,
+          "heuristic": [
+            {
+              "request": 2,
+              "roads": [
+                {
+                  "nodes": [
+                    5,
+                    6
+                  ],
+                  "pairs": 2
+                }
+              ]
+            },
+            {
+              "request": 3,
+              "roads": [
+                {
+                  "nodes": [
+                    3,
+                    2,
+                    1,
+                    4
+                  ],
+                  "pairs": 2
+                }
+              ]
+            }
+          ]
+        },
+        "split_off": {
+          "served": 3,
+          "ilp": [
+            {
+              "request": 1,
+              "roads": [
+                {
+                  "nodes": [
+                    5,
+                    2
+                  ],
+                  "pairs": 2
+                },
+                {
+                  "nodes": [
+                    5,
+                    4,
+                    1,
+                    2
+                  ],
+                  "pairs": 2
+                }
+              ]
+            },
+            {
+              "request": 2,
+              "roads": [
+                {
+                  "nodes": [
+                    5,
+                    6
+                  ],
+                  "pairs": 2
+                }
+              ]
+            },
+            {
+              "request": 3,
+              "roads": [
+                {
+                  "nodes": [
+                    3,
+                    2,
+                    1,
+                    4
+                  ],
+                  "pairs": 2
+                }
+              ]
+            }
+          ],
+          "heuristic_served": 1,
+          "heuristic": [
+            {
+              "request": 1,
+              "roads": [
+                {
+                  "nodes": [
+                    5,
+                    6,
+                    3,
+                    2
+                  ],
+                  "pairs": 4
+                }
+              ]
+            }
+          ]
+        },
+        "split_spare": {
+          "served": 3,
+          "ilp": [
+            {
+              "request": 1,
+              "roads": [
+                {
+                  "nodes": [
+                    5,
+                    2
+                  ],
+                  "pairs": 1
+                },
+                {
+                  "nodes": [
+                    5,
+                    4,
+                    1,
+                    2
+                  ],
+                  "pairs": 1
+                },
+                {
+                  "nodes": [
+                    5,
+                    6,
+                    3,
+                    2
+                  ],
+                  "pairs": 2
+                }
+              ]
+            },
+            {
+              "request": 2,
+              "roads": [
+                {
+                  "nodes": [
+                    5,
+                    6
+                  ],
+                  "pairs": 2
+                }
+              ]
+            },
+            {
+              "request": 3,
+              "roads": [
+                {
+                  "nodes": [
+                    3,
+                    2,
+                    1,
+                    4
+                  ],
+                  "pairs": 1
+                },
+                {
+                  "nodes": [
+                    3,
+                    6,
+                    5,
+                    4
+                  ],
+                  "pairs": 1
+                }
+              ]
+            }
+          ],
+          "heuristic_served": 2,
+          "heuristic": [
+            {
+              "request": 1,
+              "roads": [
+                {
+                  "nodes": [
+                    5,
+                    6,
+                    3,
+                    2
+                  ],
+                  "pairs": 2
+                },
+                {
+                  "nodes": [
+                    5,
+                    4,
+                    1,
+                    2
+                  ],
+                  "pairs": 1
+                },
+                {
+                  "nodes": [
+                    5,
+                    2
+                  ],
+                  "pairs": 1
+                }
+              ]
+            },
+            {
+              "request": 3,
+              "roads": [
+                {
+                  "nodes": [
+                    3,
+                    2,
+                    1,
+                    4
+                  ],
+                  "pairs": 1
+                },
+                {
+                  "nodes": [
+                    3,
+                    6,
+                    5,
+                    4
+                  ],
+                  "pairs": 1
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": 3,
+      "rows": 2,
+      "cols": 3,
+      "links": [
+        {
+          "a": 1,
+          "b": 2,
+          "seats": 3
+        },
+        {
+          "a": 1,
+          "b": 4,
+          "seats": 5
+        },
+        {
+          "a": 2,
+          "b": 3,
+          "seats": 3
+        },
+        {
+          "a": 2,
+          "b": 5,
+          "seats": 2
+        },
+        {
+          "a": 3,
+          "b": 6,
+          "seats": 5
+        },
+        {
+          "a": 4,
+          "b": 5,
+          "seats": 2
+        },
+        {
+          "a": 5,
+          "b": 6,
+          "seats": 5
+        }
+      ],
+      "requests": [
+        {
+          "id": 1,
+          "s": 1,
+          "d": 4,
+          "n": 3
+        },
+        {
+          "id": 2,
+          "s": 1,
+          "d": 6,
+          "n": 4
+        },
+        {
+          "id": 3,
+          "s": 3,
+          "d": 5,
+          "n": 4
+        }
+      ],
+      "solutions": {
+        "single_off": {
+          "served": 2,
+          "ilp": [
+            {
+              "request": 1,
+              "roads": [
+                {
+                  "nodes": [
+                    1,
+                    4
+                  ],
+                  "pairs": 3
+                }
+              ]
+            },
+            {
+              "request": 3,
+              "roads": [
+                {
+                  "nodes": [
+                    3,
+                    6,
+                    5
+                  ],
+                  "pairs": 4
+                }
+              ]
+            }
+          ],
+          "heuristic_served": 2,
+          "heuristic": [
+            {
+              "request": 1,
+              "roads": [
+                {
+                  "nodes": [
+                    1,
+                    4
+                  ],
+                  "pairs": 3
+                }
+              ]
+            },
+            {
+              "request": 3,
+              "roads": [
+                {
+                  "nodes": [
+                    3,
+                    6,
+                    5
+                  ],
+                  "pairs": 4
+                }
+              ]
+            }
+          ]
+        },
+        "single_spare": {
+          "served": 0,
+          "ilp": [],
+          "heuristic_served": 0,
+          "heuristic": []
+        },
+        "split_off": {
+          "served": 3,
+          "ilp": [
+            {
+              "request": 1,
+              "roads": [
+                {
+                  "nodes": [
+                    1,
+                    4
+                  ],
+                  "pairs": 3
+                }
+              ]
+            },
+            {
+              "request": 2,
+              "roads": [
+                {
+                  "nodes": [
+                    1,
+                    2,
+                    3,
+                    6
+                  ],
+                  "pairs": 2
+                },
+                {
+                  "nodes": [
+                    1,
+                    4,
+                    5,
+                    6
+                  ],
+                  "pairs": 2
+                }
+              ]
+            },
+            {
+              "request": 3,
+              "roads": [
+                {
+                  "nodes": [
+                    3,
+                    2,
+                    5
+                  ],
+                  "pairs": 1
+                },
+                {
+                  "nodes": [
+                    3,
+                    6,
+                    5
+                  ],
+                  "pairs": 3
+                }
+              ]
+            }
+          ],
+          "heuristic_served": 2,
+          "heuristic": [
+            {
+              "request": 1,
+              "roads": [
+                {
+                  "nodes": [
+                    1,
+                    4
+                  ],
+                  "pairs": 3
+                }
+              ]
+            },
+            {
+              "request": 2,
+              "roads": [
+                {
+                  "nodes": [
+                    1,
+                    2,
+                    3,
+                    6
+                  ],
+                  "pairs": 3
+                },
+                {
+                  "nodes": [
+                    1,
+                    4,
+                    5,
+                    6
+                  ],
+                  "pairs": 1
+                }
+              ]
+            }
+          ]
+        },
+        "split_spare": {
+          "served": 1,
+          "ilp": [
+            {
+              "request": 1,
+              "roads": [
+                {
+                  "nodes": [
+                    1,
+                    2,
+                    3,
+                    6,
+                    5,
+                    4
+                  ],
+                  "pairs": 1
+                },
+                {
+                  "nodes": [
+                    1,
+                    4
+                  ],
+                  "pairs": 2
+                }
+              ]
+            }
+          ],
+          "heuristic_served": 1,
+          "heuristic": [
+            {
+              "request": 1,
+              "roads": [
+                {
+                  "nodes": [
+                    1,
+                    4
+                  ],
+                  "pairs": 2
+                },
+                {
+                  "nodes": [
+                    1,
+                    2,
+                    5,
+                    4
+                  ],
+                  "pairs": 1
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
