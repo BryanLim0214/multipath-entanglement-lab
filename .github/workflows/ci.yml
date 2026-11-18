@@ -1,0 +1,30 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # tracker checks commit order (toys before solver, hypothesis before results)
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"  # QuNetSim breaks on >= 3.12 (issue #171)
+          cache: pip
+      - name: Install pinned dependencies
+        run: pip install -r requirements.txt
+      - name: No-slop lint
+        run: python tools/lint_slop.py
+      - name: Tests
+        run: python -m pytest
+      - name: Requirement tracker
+        if: always()
+        continue-on-error: true   # items not due yet show as TODO; the table is the useful part
+        run: |
+          python tools/check_tracker.py || true
+          cat .agent/TRACKER_STATUS.md >> "$GITHUB_STEP_SUMMARY"
