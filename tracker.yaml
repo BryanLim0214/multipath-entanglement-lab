@@ -31,6 +31,10 @@ items:
     week: 1
     req: "How long does one run take on a 6-10 node network, and how does it grow with the number of requests?"
     check: {exists: [results/partB_probe_runtime.csv, figures/F0_qunetsim_runtime.png]}
+  - id: W1-qns-failure-concurrency
+    week: 1
+    req: "(ours) Part B depends on injecting link failures and on multipath requests: both probed with saved data"
+    check: {exists: [results/partB_probe_p7_failure_injection.csv, results/partB_probe_p8_concurrency.csv, partB_qunetsim/probes/p7_failure_injection.py, partB_qunetsim/probes/p8_concurrency.py]}
   - id: W1-qns-version
     week: 1
     req: "Which library version are you using? Pin it in a requirements file."

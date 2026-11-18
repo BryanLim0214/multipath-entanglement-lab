@@ -1,0 +1,8 @@
+scenario,impl,topology,M,q,windows,delivered,expected_rate,seconds,seconds_per_delivered,z_correlated,z_total,x_correlated,x_total,orphan_halves,code_lines
+i_chain,i,chain,4,0.6,30,29,0.9495,20.67,0.713,15,15,14,14,0,48
+i_chain_M1,i,chain,1,0.6,8,3,0.3600,95.26,31.753,2,2,1,1,2,48
+i_two_branch,i,two_branch,4,0.6,28,23,0.9251,94.54,4.110,12,12,11,11,5,48
+ii_chain,ii,chain,4,0.6,30,29,0.9495,1.39,0.048,15,15,14,14,0,31
+ii_two_branch,ii,two_branch,4,0.6,30,25,0.9251,1.42,0.057,13,13,12,12,0,31
+iii_chain,iii,chain,4,0.6,30,29,0.9495,1.84,0.063,15,15,14,14,0,61
+iii_two_branch,iii,two_branch,4,0.6,30,25,0.9251,2.62,0.105,13,13,12,12,0,61

@@ -1,0 +1,6 @@
+scenario,trials,requests_ok,requests,trials_all_ok,trials_overlapped,seconds_per_trial,left_in_storage,outcomes
+a_seq,20,40,40,20,0,0.129,0,{'ok': 40}
+a_conc,20,40,40,20,20,0.123,0,{'ok': 40}
+b_same_path,20,40,40,20,20,0.139,0,{'ok': 40}
+b_partial,20,40,40,20,20,0.099,0,{'ok': 40}
+c_same_path4,7,27,28,6,7,36.645,2,"{'ok': 27, 'no ack': 1}"
