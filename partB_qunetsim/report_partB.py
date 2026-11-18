@@ -189,6 +189,14 @@ def macros(df, s, an, to):
         add(f"pbBetter{w}", int((d > 0).sum()))
         add(f"pbWorse{w}", int((d < 0).sum()))
         add(f"pbRuns{w}", len(d))
+    lossy = df[(df.experiment == "E4") & (df.topology == "grid") & (df.drop_rate > 0)]
+    if not lossy.empty:   # E4 on the grid with loss on: the informative part of the loss sweep
+        d = lossy.pivot_table(index=["drop_rate", "seed"], columns="method", values="success_rate")
+        d = d["MP"] - d["SP"]
+        add("pbDiffFourGrid", f"{d.mean():.2f}")
+        add("pbBetterFourGrid", int((d > 0).sum()))
+        add("pbWorseFourGrid", int((d < 0).sum()))
+        add("pbRunsFourGrid", len(d))
     add("pbRunsTotal", len(df))
     add("pbRequests", int(df.requests.sum()))
     add("pbDelivered", int(df.delivered.sum()))

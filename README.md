@@ -12,7 +12,7 @@ This is a 4-week lab project that reproduces Halder, Matus & Fettweis, *"On the 
 
 ## Results at a glance
 - **Part A** ([`results/partA_summary.md`](results/partA_summary.md), figures F1 and F2). Reproduced: multipath blocks fewer requests than single path at every q and every load. Not reproduced: the paper's absolute blocking levels, and its claim that the heuristic and the ILP are comparable.
-- **Part B** ([`results/partB_summary.md`](results/partB_summary.md), figure F3). The same comparison in QuNetSim, with real Bell-state measurements and swaps.
+- **Part B** ([`results/partB_summary.md`](results/partB_summary.md), figure F3). The same comparison in QuNetSim, with real Bell-state measurements and swaps. Multipath succeeds more often when link capacity is short (two-branch network and grid). Under the simulator's own packet drop it does not help, and on the grid it does worse.
 - **Part C** ([`results/partC_verdict.md`](results/partC_verdict.md), figure F4). The pre-registered hypothesis is supported, but plain δ = 1 does even better, so the cost comes from the spare-seat rule itself.
 - **Report:** [`report/main.tex`](report/main.tex). Every number in it is generated into `report/numbers.tex`.
 

@@ -243,7 +243,7 @@ Both ends then measure in Z or X. All \pbCorrelated{} of the \pbDelivered{} deli
 
 
 \subsection{Results}
-\textbf{The wiring is right.} On the chain at $q=1$ every request succeeds. On the chain and the two-branch network, success has a closed form: a link that must carry $m$ pairs needs at least $m$ landings in $M$ attempts, which is a binomial tail. In \pbAnalyticInside{} of \pbAnalyticTotal{} settings, the exact value lies inside the 95\% Wilson interval of the simulated rate (Fig.~\ref{fig:f3}a). With QuNetSim's built-in swap and our multipath routes installed as its router, \pbCrossOk{} of \pbCrossTotal{} pairs were correlated, so our hand-built swap is not hiding a fault.
+\textbf{The wiring is right.} On the chain at $q=1$ every request succeeds. On the chain and the two-branch network, success has a closed form: a link that must carry $m$ pairs needs at least $m$ landings in $M$ attempts, which is a binomial tail. In \pbAnalyticInside{} of \pbAnalyticTotal{} settings, the exact value lies inside the 95\% Wilson interval of the simulated rate (Fig.~\ref{fig:f3}a). With QuNetSim's built-in swap and our multipath routes installed as its router, \pbCrossOk{} of \pbCrossTotal{} pairs were correlated, so the library's swap agrees with ours.
 
 \textbf{Multipath succeeds more often.}
 \begin{itemize}
@@ -254,10 +254,10 @@ Both ends then measure in Z or X. All \pbCorrelated{} of the \pbDelivered{} deli
 
 \textbf{The price.} Multipath uses more attempts per request: \pbattThreeGridMPnVarqFive{} against \pbattThreeGridSPnVarqFive{} on the grid at $q=0.5$. Pairs on a path that fails part-way are wasted.
 
-\textbf{Packet loss does not favour multipath} (Fig.~\ref{fig:f3}c). With $q=1$ and the simulator's drop rate at 0.1, single path succeeds in \pbFourGridSPnVardOne{} of grid requests and multipath in \pbFourGridMPnVardOne. For half of the grid's node pairs the second disjoint path is two links longer, and every extra link adds packets that can be lost. On the two-branch network both routes have three links, so the two methods send the same packets and give identical results (\pbFourBranchMPnTwodOne{} at 0.1). Success falls far faster than the drop rate, because each pair needs several packets: the EPR halves, their acknowledgements and the correction bits. Multipath helps when link capacity is short, not when every packet risks loss.
+\textbf{Packet loss does not favour multipath} (Fig.~\ref{fig:f3}c). With $q=1$ and the simulator's drop rate at 0.1, single path succeeds in \pbFourGridSPnVardOne{} of grid requests and multipath in \pbFourGridMPnVardOne. Paired by seed over the three drop rates, multipath did worse in \pbWorseFourGrid{} of \pbRunsFourGrid{} grid runs and better in \pbBetterFourGrid. A likely reason, which we did not test separately: for half of the grid's node pairs the second disjoint path is two links longer, and every extra link adds packets that can be lost. On the two-branch network both routes have three links, so the two methods send the same packets and give identical results (\pbFourBranchMPnTwodOne{} at 0.1). Success falls far faster than the drop rate, probably because each pair needs several packets: the EPR halves, their acknowledgements and the correction bits. Multipath helps when link capacity is short, not when every packet risks loss.
 
 \subsection{How Part B differs from Part A}
-The ranking matches Part A, but the numbers are not comparable, for four reasons:
+When capacity is the limit (E2, E3) the ranking matches Part A, but the numbers are not comparable, for four reasons:
 \begin{itemize}
 \item \textbf{Hidden outcomes.} In Part A the planner knows every link's capacity before it routes. In Part B the routes are fixed first, and a request can fail part-way after spending attempts.
 \item \textbf{No optimisation.} Part B has no ILP and no priority $\rho$: requests are served in arrival order.
@@ -278,7 +278,7 @@ The ranking matches Part A, but the numbers are not comparable, for four reasons
 \section{Limitations}
 \begin{itemize}
 \item \textbf{The abstract model is a simplification.} Swapping always succeeds, every pair is discarded at the end of its window, memories do not decay within a window, and fidelity enters only as a hop limit. Real repeaters violate all four.
-\item \textbf{The QuNetSim results are a qualitative check, not real hardware.} QuNetSim models no noise, decoherence or timing for EPR pairs. Link failure comes from our own attempt budget (A22), and fidelity is not measured. Part B shows only that the ranking of single path and multipath survives in a packet-level simulator with real Bell-state measurements.
+\item \textbf{The QuNetSim results are a qualitative check, not real hardware.} QuNetSim models no noise, decoherence or timing for EPR pairs. Link failure comes from our own attempt budget (A22), and fidelity is not measured. Part B shows only that the ranking of single path and multipath survives in a packet-level simulator with real Bell-state measurements when capacity is the limit; under the simulator's packet drop it reverses.
 \item \textbf{The results depend on the parameters we chose.} The paper does not give the demand $n$, the number of paths $K$, or the exact arrival model. We calibrated $n$ on a single quantity, and another reading of the request model gives blocking levels close to the paper's (Section~\ref{sec:sens}).
 \item \textbf{The fidelity model is inferred.} Werner-state swapping reproduces both hop limits the paper prints, but the paper never names its model.
 \item \textbf{Scope.} We ran only the small setup. We did not run the paper's large $5\times5$ setup, which it solves with heuristics only.

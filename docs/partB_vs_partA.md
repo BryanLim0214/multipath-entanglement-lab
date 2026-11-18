@@ -27,11 +27,11 @@ The numbers come from `results/partB_summary.md` (QuNetSim, 20 seeds per setting
 
 The handout's loss sweep uses the simulator's own `packet_drop_rate` with q = 1, so the attempt budget never runs out and lost packets are the only failure.
 
-- **Grid:** single path succeeds more often. At a drop rate of 0.1 the rates are 0.39 for single path and 0.28 for multipath. For 18 of the 36 node pairs on the 3×3 grid, the second disjoint path is two links longer than the shortest one, and every extra link adds packets that can be lost.
+- **Grid:** single path succeeds more often. At a drop rate of 0.1 the rates are 0.39 for single path and 0.28 for multipath. Paired by seed over the three drop rates, multipath did worse in 34 of 60 runs and better in none. A likely reason, not tested separately: for 18 of the 36 node pairs on the 3×3 grid, the second path from `routing.k_disjoint_paths` is two links longer than the shortest one (`tests/test_partB_paths.py`), and every extra link adds packets that can be lost.
 - **Two-branch network:** the two methods give identical results (0.09 at 0.1), because both routes have three links and the same seed drops the same packets.
-- **Success falls much faster than the drop rate.** The drop hits every packet: EPR halves, acknowledgements and correction bits. A pair needs several of these to arrive.
+- **Success falls much faster than the drop rate,** probably because the drop hits every packet: EPR halves, acknowledgements and correction bits. A pair needs several of these to arrive.
 
-So multipath helps when capacity is short, and it has nothing to offer against loss that hits every packet equally. Part A has no counterpart to this experiment, because its links never lose a pair once the seats are known.
+So multipath helps when capacity is short, and in our runs it did not help against loss that hits every packet equally. Part A has no counterpart to this experiment, because its links never lose a pair once the seats are known.
 
 ## Cross-check of our swap
 

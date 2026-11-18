@@ -23,7 +23,8 @@ These are the questions most likely to come up at the presentation. Each answer 
 
 **4. Did the paper's main claim reproduce?**
 - Yes, qualitatively. Multipath blocks fewer requests than single path at every q and every load, for both the heuristic and the ILP (`results/partA_summary.md`, figure F1).
-- QuNetSim agrees on all three networks (`results/partB_summary.md`, figure F3).
+- QuNetSim agrees when link capacity is the limit, on both test networks (`results/partB_summary.md`, figure F3a and b).
+- It does not agree under the simulator's packet drop (E4): there multipath does not help, and on the grid it does worse, likely because its second path can be longer (figure F3c).
 
 **5. What did not reproduce, and is that a failure?**
 - The paper's blocking levels did not: it prints 0.27 and 0.42 at q = 0.9, and ours are near 0. Neither did its claim that the heuristic and the ILP are comparable.

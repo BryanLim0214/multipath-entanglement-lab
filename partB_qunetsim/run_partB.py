@@ -1,4 +1,4 @@
-"""Runs the Part B experiments E1 to E4 on QuNetSim in a process pool (at most 6 workers) and writes
+"""Runs the Part B experiments E1 to E4 on QuNetSim in a process pool (MAX_WORKERS = 3 workers) and writes
 results/partB.csv, results/partB_analytic.csv and results/partB_timeouts.csv. Run from the project root:
 python -m partB_qunetsim.run_partB [--smoke | --crosscheck | --analytic-only]
 """
