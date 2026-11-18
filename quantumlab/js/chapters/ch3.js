@@ -56,8 +56,8 @@ function mount(ctx) {
         beadColor: usable ? "ink" : "paper", label: usable ? "usable" : "not usable yet", note: !usable });
     }
     stage.show({
-      nodes: ["A", "B", "D"].map((id) => ({ id, ...POS[id], label: id, color: id === "B" ? "ext" : "ink" })),
-      links,
+      nodes: ["A", "B", "D"].map((id) => ({ id, ...POS[id], label: id, color: id === "B" ? "ext" : "ink", onNode: true })),
+      links, view: "top",
     });
     stage.setAlt(fresh
       ? "A chain of three cities, A, B and D. A shares a pair with B, and B shares a pair with D."
@@ -107,13 +107,13 @@ function mount(ctx) {
     if (state.phase !== "joined") { return; }
     phoneButton.disabled = true;
     const home = { x: POS.B.x, y: POS.B.y, z: 0.9 };
-    const nodes = ["A", "B", "D"].map((id) => ({ id, ...POS[id], label: id, color: id === "B" ? "ext" : "ink" }));
+    const nodes = ["A", "B", "D"].map((id) => ({ id, ...POS[id], label: id, color: id === "B" ? "ext" : "ink", onNode: true }));
     const links = [
       { from: "A", to: "B", seats: 1, color: "mp", label: "used up" },
       { from: "B", to: "D", seats: 1, color: "mp", label: "used up" },
       { from: "A", to: "D", seats: 1.2, color: "muted", arc: 2.2, beads: 1, beadColor: "paper", label: "not usable yet", note: true },
     ];
-    stage.show({ nodes, links, markers: [{ id: "toA", color: "warn", ...home }, { id: "toD", color: "warn", ...home }] });
+    stage.show({ nodes, links, view: "top", markers: [{ id: "toA", color: "warn", ...home }, { id: "toD", color: "warn", ...home }] });
     await stage.tween(400, (t) => {
       stage.moveMarker("toA", home.x + (POS.A.x - home.x) * t, home.y, home.z);
       stage.moveMarker("toD", home.x + (POS.D.x - home.x) * t, home.y, home.z);

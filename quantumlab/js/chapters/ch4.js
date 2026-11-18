@@ -75,7 +75,7 @@ async function mount(ctx) {
     const links = [];
     const nodes = Array.from({ length: n }, (_, i) => ({
       id: i, x: -SPAN_X + (2 * SPAN_X * i) / (n - 1), y: -0.8,
-      label: i === 0 ? "A" : i === n - 1 ? "B" : String(i), color: i === 0 || i === n - 1 ? "ink" : "muted",
+      label: i === 0 ? "A" : i === n - 1 ? "B" : String(i), color: i === 0 || i === n - 1 ? "ink" : "muted", onNode: true,
     }));
     for (let i = 0; i + 1 < n; i += 1) {
       links.push({ from: i, to: i + 1, seats: 1, color: rampColor(F), beads: 1, beadColor: "ink" });
@@ -85,7 +85,7 @@ async function mount(ctx) {
       links.push({ from: 0, to: n - 1, seats: 1.2, color: end < state.f ? "fail" : rampColor(end), arc: 2.4,
         label: `end to end ${fixed(end, 2)}`, note: true });
     }
-    stage.show({ nodes, links });
+    stage.show({ nodes, links, view: "top" });
     stage.setAlt(`A chain from city A to city B with ${state.middle} middle cities. `
       + `The end-to-end fidelity is ${fixed(end, 3)} and the threshold is ${fixed(state.f, 2)}.`);
   }

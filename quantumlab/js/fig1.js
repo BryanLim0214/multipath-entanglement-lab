@@ -105,18 +105,19 @@ async function mount(ctx) {
     const was = residual ? new Map(data.steps[state.frame - 1].links.map((l) => [`${l.a}-${l.b}`, l.before])) : new Map();
     const nodes = Object.entries(POSITIONS).map(([key, [x, y]]) => {
       const id = Number(key);
-      const base = id === req.s ? `${id} start` : id === req.d ? `${id} end` : String(id);
-      return { id, x, y, color: node[id] || "ink", label: labels[id] || base,
+      const base = id === req.s ? `S${id}` : id === req.d ? `E${id}` : String(id); // S = start, E = end
+      return { id, x, y, color: node[id] || "ink", label: base, onNode: true,
         hint: state.hintOn && state.frame === 0 && (id === 1 || id === 8) };
     });
     const links = data.links.map((l) => {
       const key = `${l.a}-${l.b}`;
       const left = seatsNow.get(key);
       const text = was.has(key) ? `${left} (was ${was.get(key)})` : String(left);
-      return { from: l.a, to: l.b, seats: left, color: "muted", label: text };
+      return { from: l.a, to: l.b, seats: left, color: "muted", label: text, small: true };
     });
     tubes.forEach((t) => links.push({ from: t.a, to: t.b, seats: t.seats, color: t.color, lift: t.lift }));
-    stage.show({ nodes, links });
+    const captions = Object.entries(labels).map(([key, text]) => ({ x: POSITIONS[key][0], y: POSITIONS[key][1] + 1.0, text: `alpha ${text.split(": ")[1]}` }));
+    stage.show({ nodes, links, captions, view: "top", pad: 1.6 });
     stage.setAlt(`The paper's 9 city network with link seats. Request from city ${req.s} to city ${req.d}. `
       + `Step ${state.frame} of ${total}.`);
   }
@@ -240,7 +241,7 @@ async function mount(ctx) {
       frameHost,
       ladder.element));
 
-  extra.append(h("p", { class: "stage-hint", text: "Labels on links show seats. The tube floating above the links is the path being built." }));
+  extra.append(h("p", { class: "stage-hint", text: "Labels on links show seats. The blue tube laid over the links is the path being built. S marks the start, E the end, and alpha is the score of a candidate city." }));
   refresh();
   return () => ladder.dispose();
 }

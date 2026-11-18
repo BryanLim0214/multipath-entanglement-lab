@@ -126,9 +126,9 @@ function mount(ctx) {
       links.push({ from, to, seats: 0.5, color: "rule" });
       const seats = shown ? shown[i] : 0;
       links.push({ from, to, seats, color: "mp", beads: seats, beadColor: "ink",
-        label: shown ? `${state.landed ? state.landed[i].filter(Boolean).length : seats} of ${M}` : `0 of ${M}` });
+        small: true, label: shown ? `${state.landed ? state.landed[i].filter(Boolean).length : seats} of ${M}` : `0 of ${M}` });
     });
-    stage.show({ nodes: CITIES.map((c) => ({ ...c, label: c.id, color: "ink" })), links });
+    stage.show({ nodes: CITIES.map((c) => ({ ...c, label: c.id, color: "ink", onNode: true })), links, view: "top", pad: 1.6 });
     stage.setAlt(shown
       ? `Four roads between cities A, B, C and D. Each road shows how many of its ${M} planes landed.`
       : `Four roads between cities A, B, C and D. No round has been played yet.`);

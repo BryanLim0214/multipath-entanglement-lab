@@ -45,6 +45,23 @@ export function rampColor(fidelity) {
 }
 
 /**
+ * Offset for a small link label: half a unit to one fixed side of the link (above a horizontal link, right of a vertical one).
+ * @param {THREE.Vector3} a One end of the link.
+ * @param {THREE.Vector3} b The other end.
+ * @returns {{x: number, y: number}} Scene offset from the link's midpoint.
+ */
+function sideOffset(a, b) {
+  const length = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+  let nx = -(b.y - a.y) / length;
+  let ny = (b.x - a.x) / length;
+  if (ny < -1e-6 || (Math.abs(ny) <= 1e-6 && nx < 0)) {
+    nx = -nx;
+    ny = -ny;
+  }
+  return { x: nx * 0.5, y: ny * 0.5 };
+}
+
+/**
  * Smooth stop at the end of a motion (ease-out cubic).
  * @param {number} t Progress from 0 to 1.
  * @returns {number} Eased progress from 0 to 1.
@@ -264,7 +281,7 @@ export function createStage(host) {
       el.className = `link-label${l.note ? " is-note" : ""}${l.small ? " is-small" : ""}`;
       el.textContent = l.label;
       const mid = curve.getPoint(0.5);
-      const shift = l.labelShift || { x: 0, y: l.note ? 0.4 : 0.55 };
+      const shift = l.labelShift || (l.small ? sideOffset(p0, p1) : { x: 0, y: l.note ? 0.4 : 0.55 });
       addLabel(el, mid.add(new THREE.Vector3(shift.x, shift.y, radius)));
     }
   }

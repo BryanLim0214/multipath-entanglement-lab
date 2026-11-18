@@ -247,7 +247,8 @@ async function mount(ctx) {
     const onRoad = new Set(roadsOf(req.id).flatMap((road) => road.nodes));
     const nodes = [1, 2, 3, 4, 5, 6].map((id) => ({
       id, ...cityPosition(id),
-      label: id === req.s ? `${id} start` : id === req.d ? `${id} end` : String(id),
+      label: id === req.s ? `S${id}` : id === req.d ? `E${id}` : String(id), onNode: true, // S = start, E = end
+      title: `City ${id}${id === req.s ? ", start" : id === req.d ? ", end" : ""}`,
       color: onRoad.has(id) ? "mp" : "ink",
       hint: state.hintOn && (id === req.s || id === req.d),
       onClick: (city) => clickCity(city),
@@ -256,7 +257,7 @@ async function mount(ctx) {
     const links = inst().links.map((l) => {
       const key = linkKey(l.a, l.b);
       const used = load.get(key) || 0;
-      return { from: l.a, to: l.b, seats: l.seats, color: "muted", beads: Math.min(used, l.seats),
+      return { from: l.a, to: l.b, seats: l.seats, color: "muted", beads: Math.min(used, l.seats), small: true,
         beadColor: mine.has(key) ? "mp" : "paper", label: `${l.seats - used}/${l.seats}` };
     });
     if (state.ghost) {
@@ -264,7 +265,7 @@ async function mount(ctx) {
         links.push({ from: st.from, to: st.to, seats: road.pairs, color: "ext", lift: 0.6 });
       })));
     }
-    stage.show({ nodes, links });
+    stage.show({ nodes, links, view: "top", pad: 1.6 });
     stage.setAlt(`A grid of 6 cities in 2 rows. Each link shows seats left over seats in total. `
       + `You are drawing request ${req.id}, from city ${req.s} to city ${req.d}, with ${req.n} pairs.`);
   }
@@ -394,7 +395,7 @@ async function mount(ctx) {
       h("div", { class: "field" }, h("label", {}, spareBox, "Keep a spare seat (δ = 2): one request takes at most half of a link's seats")),
       solutionHost,
       ladder.element));
-  extra.append(h("p", { class: "stage-hint", text: "Link labels show seats left over seats in total. Thicker tubes have more seats. Green tubes above the grid are the best answer." }));
+  extra.append(h("p", { class: "stage-hint", text: "Link labels show seats left over seats in total. Thicker tubes have more seats. S marks the start and E the end of the request you are drawing. Green tubes laid over the grid are the best answer." }));
 
   refreshAll();
   return () => ladder.dispose();
