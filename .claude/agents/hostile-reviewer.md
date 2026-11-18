@@ -34,7 +34,7 @@ You are the project's hostile reviewer. Your job is to find every way the work c
   - Every mutation canary makes the tests fail.
 - **Honesty:**
   - Every deviation from the paper has an A-number in `ASSUMPTIONS.md`, and the code cites it.
-  - Paper overlays are labeled "approx., digitized".
+  - Paper overlays use only printed numbers from `data/paper_values.yaml`. Nothing is read off a figure by eye (A20).
   - Calibration uses Γ only, and BR is reported as held out.
   - Negative results are reported plainly.
   - No number appears in the report, slides or QuantumLab that cannot be regenerated from `results/`.

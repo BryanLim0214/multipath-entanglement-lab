@@ -1,0 +1,31 @@
+# Numbers printed in Halder, Matus, Fettweis (GLOBECOM 2024). Text and tables only; nothing is read off a figure (A20).
+# q order for every list: [0.5, 0.6, 0.7, 0.8, 0.9]
+q: [0.5, 0.6, 0.7, 0.8, 0.9]
+
+small:            # 3x3 grid, |R|=60, M=6, T=100, t_c=10, f=0.78 (Sec. IV-A)
+  blocking_ratio_at_q09:            # Sec. IV-A text: "for q=0.9, values of BR are 0.27 and 0.42 for MP-ILP and SP-ILP"
+    MP-ILP: 0.27
+    SP-ILP: 0.42
+  gamma:                            # Table I
+    MP-ILP: [0.70, 0.68, 0.64, 0.58, 0.52]
+    MP-Heu: [0.66, 0.62, 0.57, 0.51, 0.45]
+  compute_time_s:                   # Table I (heuristics: one value for all q)
+    SP-ILP: [428, 413, 396, 382, 373]
+    MP-ILP: [873, 852, 838, 806, 783]
+    SP-Heu: 1.4
+    MP-Heu: 2
+
+large:            # 5x5 grid, |R|=1000, M=10, T=10000, f=0.6 (Sec. IV-B)
+  blocking_ratio_at_q09:            # Sec. IV-B text
+    tc10: {SP-Heu: 0.231, MP-Heu: 0.156}
+    tc20: {SP-Heu: 0.254, MP-Heu: 0.173}
+  gamma_mp_heu:                     # Table II
+    tc20: [0.72, 0.68, 0.64, 0.60, 0.55]
+    tc10: [0.66, 0.62, 0.56, 0.51, 0.45]
+
+trends:           # qualitative claims to check against our curves (Sec. IV, V)
+  - "BR decreases as q increases, for every method"
+  - "Multipath BR is below single-path BR at every q"
+  - "Gamma decreases as q increases"
+  - "ILP and heuristic are comparable"
+  - "Larger t_c (fewer windows) gives higher BR and higher Gamma (large scale)"
