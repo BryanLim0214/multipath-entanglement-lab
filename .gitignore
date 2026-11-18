@@ -2,6 +2,8 @@
 *.pdf
 !report/*.pdf
 !figures/**/*.pdf
+!figures/*.pdf
+!docs/scope_note.pdf
 
 # Python
 .venv/

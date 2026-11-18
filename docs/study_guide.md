@@ -1,8 +1,6 @@
 # Study guide: the paper explained three ways
 
-> This is study material written with AI help, meant as a scaffold. Your graded notes go in `paper_notes.md`, in your own words.
->
-> Each idea is explained at three levels: **Kid**, **Student**, and **Expert**. Each one also says **where it breaks**, meaning where the simple picture stops being true.
+> Each idea is explained at three levels: **Kid**, **Student**, and **Expert**. Each one also says **where it breaks**, meaning where the simple picture stops being true. The detailed notes are in `paper_notes.md`.
 
 ## 1. Bell pairs: magic coin pairs
 - **Kid:** You have two magic coins. Ask both the same question and they always agree. Ask them different questions and the answers look random.
@@ -42,7 +40,7 @@
   - Werner parameter w = (4F − 1)/3. Over L links, F_L = (3w^L + 1)/4.
   - With F = 0.95 and f = 0.78: L ≤ 5.03, so 5 links, which means **4 intermediate nodes**.
   - With f = 0.6: **10** intermediate nodes.
-  - Both limits were checked numerically.
+  - You can check both limits with the fidelity table in `paper_notes.md`.
 - **Where it breaks:**
   - The grey is random noise, not a copy; quantum states cannot be copied.
   - Real swaps also add noise of their own, which this model ignores.
@@ -76,8 +74,12 @@
   - Each request gets a priority ρ = i/|W_r| in its i-th eligible window.
   - A request's last chance therefore has ρ = 1, and it is served first.
 - **Keep a spare seat (δ = 2).**
-  - The heuristic only lets a request use half of a path's seats. The ILP has no such rule.
-  - That mismatch is where our extension starts.
+  - The heuristic lets a request take at most half of a path's free seats.
+  - Each pair still uses only one seat; δ just caps how much one request may grab.
+  - The ILP has no such rule. That mismatch is where our extension starts.
+- **Where these break:**
+  - ρ only ranks requests inside one round; it does not plan ahead across rounds.
+  - δ = 2 is a fixed safety margin, not something the paper derives. It may waste seats when nobody else needs them.
 
 ## Glossary in plain words
 | Term | Plain words |

@@ -7,7 +7,7 @@
 start_date: 2026-11-17          # Week 1 day 1 (adjust to the advisor's calendar)
 approval:
   scope_approved_on: null       # YYYY-MM-DD; set ONLY when the advisor approves the scope note
-  evidence: null                # e.g. "advisor email 2026-11-21, saved in docs/approvals/"
+  evidence: null                # path to a saved approval, e.g. docs/approvals/scope_2026-11-21.pdf (must exist)
 
 items:
   # ---------- Week 1: read, check feasibility, fix scope ----------
@@ -18,7 +18,7 @@ items:
   - id: W1-assumptions
     week: 1
     req: "If a detail is missing, list it as an assumption you will have to choose yourself"
-    check: {contains: {file: ASSUMPTIONS.md, all: ["| A1 ", "| A5 ", "| A8 ", "| A21 "]}}
+    check: {contains: {file: ASSUMPTIONS.md, all: ["| A1 |", "| A2 |", "| A3 |", "| A4 |", "| A5 |", "| A6 |", "| A7 |", "| A8 |", "| A9 |", "| A10 |", "| A11 |", "| A12 |", "| A13 |", "| A14 |", "| A15 |", "| A16 |", "| A17 |", "| A18 |", "| A19 |", "| A20 |", "| A21 |", "| A22 |", "## References"]}}
   - id: W1-qns-routing
     week: 1
     req: "How does QuNetSim pick the route ... Can you replace that rule with your own path selection?"
@@ -102,7 +102,7 @@ items:
   - id: B-failure
     week: 3
     req: "Configure link loss or noise using the simulator's parameters; document the values"
-    check: {contains: {file: docs/partB_setup.md, all: ["packet_drop_rate"]}}
+    check: {contains: {file: docs/partB_setup.md, all: ["packet_drop_rate", "attempt budget", "q ="]}}
   - id: B-runs
     week: 3
     req: "Record success/failure, fidelity (if exposed), completion time; >=20 repeats per setting, mean with CI"

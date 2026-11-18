@@ -59,7 +59,7 @@ def run_check(item, cfg):
         key = check["manual"]
         if key == "approval":
             ev = cfg["approval"]
-            ok = bool(ev.get("scope_approved_on") and ev.get("evidence"))
+            ok = bool(ev.get("scope_approved_on") and ev.get("evidence") and (ROOT / str(ev["evidence"])).is_file())
         else:
             ok = bool(item.get("evidence"))
         return (True if ok else None), ("evidence recorded" if ok else "needs human evidence")
@@ -70,7 +70,7 @@ def run_check(item, cfg):
             return False, f"{spec['first']} never committed"
         if b is None:
             return False, f"{spec['then']} not committed yet"
-        return a <= b, f"{spec['first']} {a:%Y-%m-%d %H:%M} vs {spec['then']} {b:%Y-%m-%d %H:%M}"
+        return a < b, f"{spec['first']} {a:%Y-%m-%d %H:%M} vs {spec['then']} {b:%Y-%m-%d %H:%M} (must be strictly earlier)"
     if "no_code_before_approval" in check:
         approved = cfg["approval"].get("scope_approved_on")
         for path in check["no_code_before_approval"]["paths"]:
