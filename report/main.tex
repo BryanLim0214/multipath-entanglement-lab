@@ -11,7 +11,7 @@
 
 \begin{document}
 
-\title{Reproducing Multipath Entanglement Distribution:\\ ILP, Heuristic, and a QuNetSim Check}
+\title{Does Splitting the Load Help?\\ Rechecking a Quantum Network Study}
 
 \author{\IEEEauthorblockN{Panhapiseth Lim and Victor Akinmade}
 \IEEEauthorblockA{University of Texas of the Permian Basin\\
@@ -20,185 +20,173 @@ lim\_p65274@utpb.edu, akinmade\_v27471@utpb.edu}}
 \maketitle
 
 \begin{abstract}
-Multipath routing lets a request for entanglement split its Bell pairs over several paths. Halder, Matus and Fettweis (GLOBECOM 2024) report that this blocks fewer requests than single-path routing, using an integer linear program (ILP) and a greedy heuristic. This report repeats their comparison. The paper leaves several model details unstated, so we rebuilt the model from the text and recorded 27 assumptions. We checked the ILP against hand-solved examples, brute force and a second formulation. In our rebuild of the model, multipath blocked fewer requests at every link quality and load we tried, as the paper reports. The paper's blocking levels and its claim that the heuristic is close to the ILP did not reproduce. In the QuNetSim simulator, with real Bell-state measurements, multipath again succeeded more often when link capacity was short, but not under packet loss. A pre-registered change to the heuristic met its target, yet removing the heuristic's headroom rule entirely did better. We also list seven inconsistencies in the paper.
+Future quantum networks will link distant places with pairs of particles that stay connected however far apart they are. These links are scarce: each one takes several tries to make, and it lasts only a short time. A 2024 study by Halder, Matus and Fettweis asked whether a request for such links is served more often if it may split its order over several roads instead of using one. They found that it is. We rebuilt their study from the written paper, filled in 27 details it leaves out, and checked our code against examples worked by hand. Splitting helped in every case we tried, as the study says. Two of its other results did not hold up: its numbers are much higher than ours, and its fast planning method does much worse than its best-possible method, not about as well. In a second test inside a quantum network simulator, splitting helped when links were scarce but not when messages were lost on the way. We also tested a change of our own to the fast method and found that a rule it uses to save room for others is what holds it back.
 \end{abstract}
 
 \section{Introduction}
-Two distant nodes of a quantum network share entanglement by making Bell pairs on each link and joining them at intermediate nodes by entanglement swapping. Link generation is probabilistic, quantum memories hold pairs only for a short cut-off time, and every swap lowers fidelity. Routing must therefore decide which requests to serve in each time window and over which paths.
+A quantum network links distant places with entangled pairs: two particles that give matching answers when both are measured the same way, however far apart they are. A pair cannot carry a message by itself, but it is the basic resource for secure keys and for connecting quantum computers. Pairs can only be made directly between neighbouring places. To link two far-apart places, the network makes a pair on each road along the way and then joins them at every stop in between, a step called swapping.
 
-Halder, Matus and Fettweis~\cite{halder2024} study online requests that each need $n$ Bell pairs between a source and a destination before a deadline. They allow a request to split its pairs over several edge-disjoint paths, formulate placement in each window as an ILP, propose a faster greedy heuristic, and report that multipath routing blocks fewer requests than single-path routing (for example, a blocking ratio of 0.27 against 0.42 at link success probability $q=0.9$).
+Three things make this hard. Making a pair often fails, so each road has only a few pairs to offer at a time. Pairs fade quickly, so unused ones are thrown away after a short round. And every join blurs the result a little, so a route cannot have too many stops.
 
-The report follows the lab handout in three parts. Part A rebuilds the paper's model in Python and compares single-path routing, the ILP and the heuristic. Part B builds both kinds of routing in the QuNetSim simulator~\cite{qunetsim}, where link failures happen while pairs are being made. Part C tests one change to the heuristic, with a hypothesis fixed before any run. All code, data and assumptions are public.\footnote{\url{https://github.com/BryanLim0214/multipath-entanglement-lab}}
+Requests arrive over time. Each asks for some number of pairs between two places before a deadline, and the network must choose which requests to serve in each round and along which roads. Halder, Matus and Fettweis~\cite{halder2024} compared two ways of doing this. In the first, all of a request's pairs travel along one road. In the second, the request may split its pairs over several roads that share no stretch. They report that splitting turns away fewer requests: at the best link quality they tried, 27\% against 42\%.
+
+Our lab asked us to check this claim in three parts. In Part A we rebuilt the study's model in Python. In Part B we tried the same idea in QuNetSim~\cite{qunetsim}, a program that simulates a quantum network one message at a time. In Part C we tested one change of our own. All code, data and assumptions are public.\footnote{\url{https://github.com/BryanLim0214/multipath-entanglement-lab}}
 
 \section{Models and Assumptions}
-\subsection{Network and request model}
-The network is a graph $G(V,E)$. Each neighbouring pair $(i,j)$ has $M$ quantum memories. At the start of each window of $t_c$ timeslots, each memory tries once to create a Bell pair with probability $q$, so the link capacity is $C_{ij}\sim\mathrm{Binomial}(M,q)$. All pairs are discarded at the end of the window, and swapping is assumed to succeed.
+\subsection{The study's world in plain terms}
+Picture a map of cities joined by roads; the study uses a 3 by 3 grid of nine cities. In each round, every road gets $M=6$ chances to make a pair, and each chance works with probability $q$, between 0.5 and 0.9. The pairs that work are that road's seats for the round. At the end of the round, unused seats are thrown away and the next round starts fresh.
 
-A request $r=\langle s,d,n,a,h,b,f\rangle$ needs $n$ pairs from $s$ to $d$. It arrives at slot $a$, runs for $h$ slots, has deadline $b$, and requires end-to-end fidelity $f$. It must run inside a single window. In its $i$-th eligible window it has priority $\rho=i/|W_r|$, so a request on its last chance has $\rho=1$. The blocking ratio is the share of requests never served.
+A request names a start city, an end city, the number of pairs it needs ($n$) and a deadline, and it must be served inside one round. If it cannot be served in time, it is turned away. Our main score is the share of requests turned away, which the study calls the blocking ratio; lower is better. When requests compete, the one closest to its deadline goes first.
 
-\subsection{Fidelity limit}
-The paper states only the resulting hop limits. Werner-state swapping~\cite{briegel1998} reproduces both of them, and the authors' earlier paper uses the same formula~\cite{halder2024sr}. With $w=(4F-1)/3$, a path of $L$ links has fidelity $F_L=(3w^L+1)/4$. For $F=0.95$, $F_5=0.781\geq0.78>F_6=0.746$, so a path may use at most 4 intermediate nodes. The same formula gives 10 intermediate nodes for $f=0.6$, which matches the paper's large setup.
+Each join blurs the pair a little. The study allows at most four stops between start and end, because a fifth would blur the pair below the quality the request needs.\footnote{We assume the standard Werner-state model~\cite{briegel1998}: with link fidelity $F=0.95$ and $w=(4F-1)/3$, a route of $L$ roads has fidelity $(3w^L+1)/4$. It gives exactly the paper's limits of 4 stops for a required fidelity of 0.78 and 10 stops for 0.6, and the authors' earlier paper uses it~\cite{halder2024sr}.}
 
-\subsection{ILP and heuristic}
-In each window, the ILP maximises $\sum_r \rho_r X_r$. Its constraints keep flow conserved on up to $K$ paths per request, keep a request's paths edge-disjoint, enforce the intermediate-node limit and the link capacities, and deliver either all $n$ pairs or none.
+\subsection{Two planners}
+The study plans each round in two ways. The best-possible planner, an integer linear program (ILP), is a solver guaranteed to find the plan that serves the most urgent requests. It is exact but slow. The quick planner, a heuristic, walks from the start city one road at a time, each time taking the road with the most seats per stop still to go. If one route has plenty of room, the request uses it; if not, the planner looks for more routes that share no road and splits the pairs over them. The quick planner also keeps a spare seat: one request may take at most half of a road's seats. The best-possible planner has no such rule, and our extension starts from this difference.
 
-The heuristic walks greedily from $s$. At each step it moves to the neighbour with the best ratio of bottleneck capacity to the number of intermediate nodes on its best continuation. It then removes the path's links and repeats to collect edge-disjoint paths. A request is placed on one path if that path's bottleneck is at least $n\delta$. Otherwise it is split, with $\lfloor BC_j/\delta\rfloor$ pairs per path, using $\delta=2$. The ILP has no such headroom factor, and our extension starts from this difference.
+Each planner comes in two kinds, one road only (SP, single path) and split allowed (MP, multipath). Heu marks the quick planner and ILP the best-possible one, so MP-Heu is the quick planner allowed to split. We also include the lab's simplest baseline, which always takes the route with the fewest stops (SP-SPF).
 
-\subsection{Assumptions}
-Every choice the paper leaves open is recorded with an identifier in \texttt{ASSUMPTIONS.md}. The ones that matter most are listed in Table~\ref{tab:assumptions}. For comparison we use only the numbers the paper prints, in its text and in the paper's Tables~I and~II. We read nothing off its figures.
+\subsection{What the paper leaves out}
+The paper does not say how many pairs a request needs, over how many roads it may split, or exactly how arrival times are drawn. We had to choose these, and we wrote down all 27 choices in \texttt{ASSUMPTIONS.md}. Table~\ref{tab:assumptions} lists the ones that matter most. We compare only against numbers the paper prints, never against values read off its plots.
 
-We also found seven inconsistencies in the paper, none of which changes its conclusions. The Fig.~1 request is written $\langle 6,7,4\rangle$ but routed from 7 to 6, and its $\alpha_3$ should be 3/2, not 4/2. The objective lacks the sum over requests. Section~IV labels the multipath heuristic SP-Heu. The abstract calls swapping probabilistic, but the model never lets it fail. The fidelity $f$ is called a maximum but acts as a minimum. Constraint (2d) makes paths disjoint per directed arc, while the text says edge-disjoint.
+We also found seven slips in the paper, none of which changes its conclusions. Its worked example names the request as going from city 6 to city 7 but routes it from 7 to 6, and one score in that example should be 3/2, not 4/2. The goal formula is missing a sum. One method is mislabelled. The summary calls joins uncertain, but the model never lets them fail. The required quality is called a maximum but works as a minimum. And one rule keeps routes apart in one direction only, while the text says they share no road at all.
 
 \begin{table}[t]
-\caption{Assumptions that shape the results}
+\caption{The choices that shape our results}
 \label{tab:assumptions}
 \centering\small
-\begin{tabular}{@{}lp{0.72\columnwidth}@{}}
+\begin{tabular}{@{}lp{0.78\columnwidth}@{}}
 \toprule
-ID & Choice \\
+ID & Our choice \\
 \midrule
-A1 & Demand $n$ is never given. We calibrate its range on $\Gamma$ (the paper's Table~I) only, so blocking ratio is a held-out check. \\
-A2 & At most $K=\min(\deg s,\deg d)$ paths per request. \\
-A3 & Arrival slot $a\sim\mathrm{Poisson}(t_c/4)$, read as a direct draw. \\
-A4 & The single-path ILP is the ILP with $K=1$. The single-path heuristic is the heuristic without splitting. \\
-A8 & A path with $\gamma$ pairs uses $\gamma$ seats on each link (Fig.~1c). $\delta$ only caps one request's share. \\
-A22 & In QuNetSim, each link has $M$ attempts per window, each succeeding with probability $q$. Routes are fixed before outcomes are known. \\
+A1 & Pairs per request: never given. We tuned it only on how often the paper's quick planner splits (its Table~I), never on the share turned away, so that share stays a fair test. \\
+A2 & Roads per request: at most as many as the start or end city has. \\
+A3 & Arrival times: drawn exactly as the paper's formula is written. \\
+A4 & One-road planners: the same planners with splitting switched off. \\
+A8 & A route carrying $k$ pairs uses $k$ seats on each of its roads. The spare seat only limits one request's share. \\
+A22 & In the simulator, each road gets $M$ tries per round, shared by everyone, and routes are chosen before anyone knows which tries will work. \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\section{Part A: Abstract-Model Reproduction}
-\subsection{Setup and correctness checks}
-We use the paper's small setup: a $3\times3$ grid with $|R|=60$, $M=6$, $T=100$ and $t_c=10$, with $F=0.95$, $f=0.78$ and $q$ from 0.5 to 0.9. Each point is the mean of 30 seeds with a 95\% confidence interval. For a given seed, every method sees the same requests and the same link outcomes, so the differences between methods are paired.
+\section{Part A: Rebuilding the Study}
+\subsection{How we set it up and checked it}
+We used the study's small setup: nine cities in a grid, 60 requests over 100 time steps, rounds of 10 steps, and link quality $q$ from 0.5 to 0.9. Each point in our plots is the average of 30 runs with different random draws, and the shaded band (a 95\% confidence interval) shows how sure we are of that average. In each run, every planner faces exactly the same requests and the same luck on every road, so any difference between planners comes from the planners alone. We ran the best-possible planner with the free solver HiGHS~\cite{highs} through PuLP~\cite{pulp}. It proved its answer best in every one of \ilpRuns{} runs; \ilpTimeLimitWindows{} rounds ran out of time.
 
-We compare five methods. SP-SPF is the lab's shortest-hop baseline. SP-Heu and MP-Heu are the heuristic without and with splitting, and SP-ILP and MP-ILP are the two ILPs.
-The ILPs are solved with HiGHS~\cite{highs} through PuLP~\cite{pulp} on a path-based formulation, with zero optimality gap and a 60~s limit per window. It gives the same optimum as the paper's arc-based formulation on 200 random windows, and a smaller model we use for $K=1$ matches it on the same windows. Across all \ilpRuns{} ILP runs, \ilpTimeLimitWindows{} windows stopped at the time limit, so every ILP result here is a proven optimum.
+Before trusting any plot, we tested the code against answers known in advance. We solved two small maps by hand and saved the answers before writing any planner. Our quick planner repeats the paper's own worked example step by step. On small cases, trying every possible plan by brute force agrees with the solver. The quick planner should never beat the best-possible one; in \auditWindows{} rounds we checked, it did so \auditViolations{} times. The tests also catch bugs we planted on purpose to make sure they would.
 
-Before using any curve, we checked the code against answers fixed in advance. We solved two toy networks by hand and committed the answers before any solver code existed. In the first, a request can be served only by splitting; in the second, the fidelity limit rules out the long route; in both, the heuristic scores below the ILP. Our heuristic reproduces the paper's own Fig.~1 example path for path, and brute-force enumeration agrees with the ILP on small windows. In every window the objectives must keep the order heuristic $\le$ ILP-$\delta$ $\le$ ILP, for the multipath and the single-path versions, and SP-ILP $\le$ MP-ILP. Here ILP-$\delta$ is the ILP with the heuristic's cap of $\lfloor C_e/\delta\rfloor$ pairs per request and link. An audit replayed all 30 seeds at every $q$ and found \auditViolations{} violations and \auditInconclusive{} time-limited solves in \auditWindows{} windows. Finally, the test suite catches each of several bugs we planted on purpose.
-
-Demand $n$ was calibrated first (A1). Each candidate range was scored only on MP-Heu $\Gamma$ against the paper's Table~I. The first grid of ranges was widened once, before any blocking ratio existed, and the range \nChoice{} fit best (RMSE \gammaRMSE). The fit is loose: our $\Gamma$ falls faster with $q$ than the paper's (Table~\ref{tab:paper}). Blocking ratio and MP-ILP $\Gamma$ were never looked at during calibration, so they are held-out checks.
+Because the paper never says how many pairs a request needs, we tried several options and kept the one that best matched how often the paper's quick planner splits requests. The best fit was every request needing exactly \nChoiceLo{} pairs, and even that fit is loose. We never looked at the share turned away while choosing, so that share remains a fair test of the paper's claim.
 
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{F1_partA_blocking.pdf}
-\caption{Blocking ratio, mean and 95\% CI over 30 paired seeds. Left: against link success probability $q$, with the two values the paper prints for $q=0.9$. Right: against the number of requests at $q=0.7$. ILP solid, heuristic dashed.}
+\caption{Share of requests turned away (blocking ratio), averaged over 30 runs with 95\% bands. Left: against link quality $q$, with the two values the paper prints at $q=0.9$. Right: against the number of requests at $q=0.7$. Solid lines: best-possible planner (ILP). Dashed: quick planner (Heu). SP: one road. MP: split allowed. SP-SPF: fewest-stops baseline.}
 \label{fig:f1}
 \end{figure*}
 
-\subsection{What reproduced}
-Multipath blocks fewer requests than single path, for the heuristics and for the ILPs, at every $q$ (Fig.~\ref{fig:f1}, left). At $q=0.5$ the heuristics block \brMPHeuqFive{} with splitting and \brSPHeuqFive{} without, and the ILPs block \brMPILPqFive{} and \brSPILPqFive. The same holds at every load (Fig.~\ref{fig:f1}, right); at $|R|=100$, MP-Heu blocks \brMPHeuRHundred{} and SP-Heu \brSPHeuRHundred.
+\subsection{What matched the study}
+Splitting turns away fewer requests, for both planners and at every link quality (Fig.~\ref{fig:f1}, left). At $q=0.5$ the quick planner turns away \brMPHeuqFive{} of requests when it may split and \brSPHeuqFive{} when it may not; the best-possible planner turns away \brMPILPqFive{} and \brSPILPqFive. The same holds as the network gets busier (Fig.~\ref{fig:f1}, right). As in the study, fewer requests are turned away when links are more reliable, the best-possible planner is slower, and the quick planner splits less often as links improve (Fig.~\ref{fig:f2}). The simplest baseline does almost exactly as well as the one-road quick planner, which suggests that what helps is the freedom to split, not clever choice of road.
 
-The other trends also match the paper. Blocking falls as $q$ rises and grows with load. The ILPs are slower than the heuristics, and MP-ILP is the slowest. MP-Heu splits fewer requests as $q$ rises (Fig.~\ref{fig:f2}), although this is weak evidence because $\Gamma$ was the calibration target. SP-SPF and SP-Heu are almost identical, which suggests that the heuristic's path choice matters much less than its ability to split.
+\subsection{What did not match}
+First, our numbers are much lower. At $q=0.9$ the paper turns away 27\% of requests with splitting and 42\% without; we turn away \brMPILPqNine{} and \brSPILPqNine. With the settings the paper prints, our network is far less busy than theirs. Section~\ref{sec:sens} looks at why.
 
-\subsection{What did not reproduce}
-The absolute levels did not reproduce. At $q=0.9$ the paper prints 0.27 for MP-ILP and 0.42 for SP-ILP. Our ILPs block \brMPILPqNine{} and \brSPILPqNine. Under the same printed parameters, our network carries much less load than the paper's. Section~\ref{sec:sens} tests two readings of the request model that could explain this.
+Second, the paper says its quick planner does about as well as the best-possible one. Ours does much worse when links are poor: at $q=0.5$ it turns away \brMPHeuqFive{} against \brMPILPqFive. Two experiments show where the gap comes from. A best-possible planner forced to keep the spare seat turns away \brMPILPDeltaqFive. The quick planner without the spare seat turns away \brMPHeuDoneqFive. Walking greedily costs little and the spare seat costs little, but together they cost a lot. This result led to our extension.
 
-The paper also calls the heuristic and the ILP comparable. Ours are far apart at low $q$, where MP-Heu blocks \brMPHeuqFive{} and MP-ILP \brMPILPqFive. Two diagnostics at $q=0.5$ show where the gap comes from. ILP-$\delta$, an optimal solver that must keep the heuristic's headroom, blocks \brMPILPDeltaqFive. The heuristic with $\delta=1$, still greedy but without headroom, blocks \brMPHeuDoneqFive. Greedy search and the headroom rule each cost little alone and much more together, so the headroom rule hurts the greedy placer far more than an optimal one. Our extension builds on this result.
+Third, how often the best-possible planner splits does not match: it falls from \gammaMPILPqFive{} to \gammaMPILPqNine{} for us and from \paperGammaMPILPqFive{} to \paperGammaMPILPqNine{} in the paper. This number is not well defined. Many different plans serve the same requests and differ only in how often they split, so the number depends on which plan the solver happens to return.
 
-The ILP's $\Gamma$ was held out from calibration. Ours falls from \gammaMPILPqFive{} to \gammaMPILPqNine{} over the range of $q$. The paper's falls from \paperGammaMPILPqFive{} to \paperGammaMPILPqNine. The ILP's objective counts served requests and ignores paths, so many optimal solutions differ only in how often they split. $\Gamma$ of an ILP therefore depends on which optimum the solver returns, and the paper does not say how it chose.
-
-Per run (all ten windows), our heuristics take under 0.1~s, our SP-ILP about \runtimeSPILPqFive~s, and our MP-ILP \runtimeMPILPqFive--\runtimeMPILPqEight~s. The paper reports \paperTimeSPILPqNine--\paperTimeSPILPqFive~s for SP-ILP and \paperTimeMPILPqNine--\paperTimeMPILPqFive~s for MP-ILP, with CPLEX. The order matches, with the heuristic fastest, then SP-ILP, then MP-ILP. Our times are far lower, but the solver, formulation and hardware all differ, so the times cannot be compared directly.
+Speed ranks the same way as in the paper: the quick planner first, then the one-road best-possible planner, then the splitting one. Our times are much shorter (\runtimeMPILPqFive~s against the paper's \paperTimeMPILPqFive~s per run for the slowest), but we used a different solver and computer, so the times cannot be compared.
 
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{F2_partA_gamma.pdf}
-\caption{Share of served requests that used more than one path ($\Gamma$). MP-Heu was the calibration target. MP-ILP is held out. Open markers are the values in the paper's Table~I.}
+\caption{Share of served requests that were split over more than one road. We tuned on the quick planner (MP-Heu); the best-possible planner (MP-ILP) was not used for tuning. Open markers are the paper's values.}
 \label{fig:f2}
 \end{figure}
 
 \begin{table}[t]
-\caption{Values the paper prints, against ours}
+\caption{Numbers the paper prints, against ours}
 \label{tab:paper}
 \centering\small
 \begin{tabular}{@{}lccl@{}}
 \toprule
-Quantity & Paper & Ours & Role \\
+Quantity & Paper & Ours & Use \\
 \midrule
-BR, MP-ILP, $q=0.9$ & \paperBRMPILPqNine & \brMPILPqNine & held out \\
-BR, SP-ILP, $q=0.9$ & \paperBRSPILPqNine & \brSPILPqNine & held out \\
-$\Gamma$, MP-Heu, $q=0.5$ & \paperGammaMPHeuqFive & \gammaMPHeuqFive & calibrated \\
-$\Gamma$, MP-Heu, $q=0.9$ & \paperGammaMPHeuqNine & \gammaMPHeuqNine & calibrated \\
-$\Gamma$, MP-ILP, $q=0.5$ & \paperGammaMPILPqFive & \gammaMPILPqFive & held out \\
-$\Gamma$, MP-ILP, $q=0.9$ & \paperGammaMPILPqNine & \gammaMPILPqNine & held out \\
-Time (s), SP-ILP, $q=0.5$ & \paperTimeSPILPqFive & \runtimeSPILPqFive & other solver \\
-Time (s), MP-ILP, $q=0.5$ & \paperTimeMPILPqFive & \runtimeMPILPqFive & other solver \\
+Turned away, MP-ILP, $q=0.9$ & \paperBRMPILPqNine & \brMPILPqNine & fair test \\
+Turned away, SP-ILP, $q=0.9$ & \paperBRSPILPqNine & \brSPILPqNine & fair test \\
+Split share, MP-Heu, $q=0.5$ & \paperGammaMPHeuqFive & \gammaMPHeuqFive & tuned on \\
+Split share, MP-Heu, $q=0.9$ & \paperGammaMPHeuqNine & \gammaMPHeuqNine & tuned on \\
+Split share, MP-ILP, $q=0.5$ & \paperGammaMPILPqFive & \gammaMPILPqFive & fair test \\
+Split share, MP-ILP, $q=0.9$ & \paperGammaMPILPqNine & \gammaMPILPqNine & fair test \\
+Seconds, SP-ILP, $q=0.5$ & \paperTimeSPILPqFive & \runtimeSPILPqFive & other solver \\
+Seconds, MP-ILP, $q=0.5$ & \paperTimeMPILPqFive & \runtimeMPILPqFive & other solver \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\subsection{Why are our blocking levels lower?}\label{sec:sens}
+\subsection{Why are our numbers lower?}\label{sec:sens}
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{F3_partB_success.pdf}
-\caption{Part B in QuNetSim: request success rate, mean and 95\% CI over 20 seeds. (a) Two-branch network with the exact binomial prediction (thin black). (b) $3\times3$ grid with four requests per window competing for the same links. (c) The grid under the simulator's own packet drop, with $q=1$ so that loss is the only cause of failure.}
+\caption{Part B in the QuNetSim simulator: share of requests served, averaged over 20 runs with 95\% bands. (a) Map with two separate routes; the thin black line is the exact answer worked out by hand. (b) The 3 by 3 grid, with four requests competing in each round. (c) The grid when the simulator loses messages and every try works, so lost messages are the only cause of failure.}
 \label{fig:f3}
 \end{figure*}
-Two other readings of the request model would load the network more. In the first (gaps, A3), the Poisson draws are gaps between arrivals rather than arrival slots. Arrivals then drift late, and requests that cannot finish before $T$ never enter the network; we count them as blocked. In the second (per slot, A27), a request needs $n$ pairs in each of its $h$ slots, or $nh$ pairs in its window. After Part A was frozen, we reran the four methods under each reading and under both together, with the same \sensSeeds{} seeds (Table~\ref{tab:sens}).
+We tried two other readings of the paper's description, each of which makes the network busier. In the first, the random numbers in the arrival formula are gaps between requests rather than arrival times, so requests arrive later and some come too late to be served. In the second, a request needs its pairs in every time step it runs, not just once per round. We ran both after Part A was frozen, with the same \sensSeeds{} runs (Table~\ref{tab:sens}).
 
-The per-slot reading comes close to the paper's levels. At $q=0.9$, MP-ILP blocks \sensBRPerSlotMPILPqNine{} and SP-ILP \sensBRPerSlotSPILPqNine, against the paper's \paperBRMPILPqNine{} and \paperBRSPILPqNine, with a similar gap between them. The gaps reading does not. It lifts every method to about the same level at $q=0.9$ (MP-ILP \sensBRGapsMPILPqNine, SP-ILP \sensBRGapsSPILPqNine), because the extra blocked requests never arrive before $T$ and no routing can serve them.
-
-The per-slot reading is therefore the more plausible explanation of the level gap, though we cannot confirm it without the authors' code. Under every reading, multipath blocks no more than single path on average at both $q$ values tested. Even under the per-slot reading, our heuristic stays far from our ILP (MP-Heu \sensBRPerSlotMPHeuqNine{} at $q=0.9$), and that gap remains unexplained. Our headline results keep the reading we fixed before seeing any blocking ratio.
+The second reading lands close to the paper. At $q=0.9$ the best-possible planner turns away \sensBRPerSlotMPILPqNine{} with splitting and \sensBRPerSlotSPILPqNine{} without, against the paper's \paperBRMPILPqNine{} and \paperBRSPILPqNine. The first reading does not, because it turns away the late requests no matter how they are routed. The second reading is therefore the more likely explanation, though only the authors' code could confirm it. Under every reading, splitting turns away no more requests than one road. Even under the second reading, our quick planner stays far behind the best-possible one, which we cannot explain. Our main results keep the reading we chose before seeing any results.
 
 \begin{table}[t]
-\caption{Blocking ratio at $q=0.9$ under other readings of the request model (\sensSeeds{} seeds, held out)}
+\caption{Share turned away at $q=0.9$ under other readings of the paper (\sensSeeds{} runs, not used for tuning)}
 \label{tab:sens}
 \centering\small
 \begin{tabular}{@{}lccc@{}}
 \toprule
 Reading & SP-ILP & MP-ILP & MP-Heu \\
 \midrule
-Ours (per window, direct arrivals) & \brSPILPqNine & \brMPILPqNine & \brMPHeuqNine \\
-Gaps & \sensBRGapsSPILPqNine & \sensBRGapsMPILPqNine & \sensBRGapsMPHeuqNine \\
-Per slot & \sensBRPerSlotSPILPqNine & \sensBRPerSlotMPILPqNine & \sensBRPerSlotMPHeuqNine \\
-Gaps and per slot & \sensBRGapsPerSlotSPILPqNine & \sensBRGapsPerSlotMPILPqNine & \sensBRGapsPerSlotMPHeuqNine \\
+Ours (pairs once per round) & \brSPILPqNine & \brMPILPqNine & \brMPHeuqNine \\
+Late arrivals (gaps) & \sensBRGapsSPILPqNine & \sensBRGapsMPILPqNine & \sensBRGapsMPHeuqNine \\
+Pairs every time step & \sensBRPerSlotSPILPqNine & \sensBRPerSlotMPILPqNine & \sensBRPerSlotMPHeuqNine \\
+Both & \sensBRGapsPerSlotSPILPqNine & \sensBRGapsPerSlotMPILPqNine & \sensBRGapsPerSlotMPHeuqNine \\
 Paper (printed) & \paperBRSPILPqNine & \paperBRMPILPqNine & n/a \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\section{Part B: QuNetSim Check}
+\section{Part B: Checking in a Quantum Network Simulator}
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{F4_partC_extension.pdf}
-\caption{Extension. Left: blocking ratio against $q$ for the heuristic with $\delta=2$ (the paper), $\delta=1$ and deadline-aware $\delta$, with MP-ILP and ILP-$\delta$ for reference. Right: paired difference BR(MP-Heu) $-$ BR(deadline-aware) with 95\% CI. The dashed line is the pre-registered threshold.}
+\caption{Extension. Left: share turned away by the quick planner with the spare seat (the paper, $\delta=2$), without it ($\delta=1$), and without it only on a request's last chance (deadline), with the best-possible planner with and without the spare seat for reference. Right: the improvement from the last-chance change, with 95\% bands. The dashed line is the improvement we predicted before running anything.}
 \label{fig:f4}
 \end{figure*}
 \subsection{Setup}
-We use QuNetSim 0.1.3 on three networks: a chain A--B--C as a sanity check, a two-branch network with routes S--a1--a2--D and S--b1--b2--D, and a $3\times3$ grid. Every end-to-end pair is built hop by hop with QuNetSim calls. \texttt{send\_epr} creates a pair on each link, each middle node makes a Bell measurement and sends two classical bits to the destination, and the destination applies the X and Z corrections. Both ends then measure in Z or X. All \pbCorrelated{} of the \pbDelivered{} delivered pairs gave matching outcomes.
+QuNetSim~\cite{qunetsim} simulates a quantum network one message at a time, with real quantum steps. We used three maps: a chain of three cities as a warm-up, a map with two separate three-road routes between start and end, and the 3 by 3 grid. Each long pair is built the real way. A pair is made on each road, each city in between joins its two pairs and phones the result to the end city, and the end city adjusts its particle to match. Then both ends measure. All \pbCorrelated{} of the \pbDelivered{} pairs we delivered gave matching answers, so the joining works.
 
-QuNetSim's per-link loss model never affects EPR pairs, its global packet drop rate also discards classical messages and acknowledgements, and injecting a failure inside its swap crashed it. We therefore give each link $M$ attempts per window, each landing with probability $q$ (A22). The attempts are shared by every request and path that uses the link, so multipath gets no extra attempts, only more of the network.
-
-Single path uses QuNetSim's default router (a shortest path). Multipath uses $k=2$ link-disjoint paths and splits the pairs evenly. Requests are served one after another, because concurrent sends between the same hosts mix up their qubits (QuNetSim issue 170). A request succeeds only if all $n$ pairs arrive before a link on their route runs out of attempts. Each setting uses \pbSeeds{} seeds, with the same dice for single path and multipath. Separately, we run the handout's loss sweep with the simulator's own drop rate (E4).
-
+The simulator's own ways of making a road fail did not fit our test: one never affects pairs, and the other also loses ordinary messages. So we gave each road $M$ tries per round, each working with chance $q$ (A22). The tries are shared by everyone who uses the road, so splitting gets no extra tries, only more roads. The one-road method uses the simulator's own shortest route, and the splitting method uses two routes that share no road. A request counts as served only if all its pairs arrive. Every setting was run \pbSeeds{} times with different random draws, giving both methods the same luck. Separately, we ran the lab's requested test with the simulator's own message loss.
 
 \subsection{Results}
-On the chain at $q=1$ every request succeeds. On the chain and the two-branch network, success has a closed form: a link that must carry $m$ pairs needs at least $m$ landings in $M$ attempts, which is a binomial tail. In \pbAnalyticInside{} of \pbAnalyticTotal{} settings, the exact value lies inside the 95\% Wilson interval of the simulated rate (Fig.~\ref{fig:f3}a). With QuNetSim's built-in swap and our multipath routes installed as its router, \pbCrossOk{} of \pbCrossTotal{} pairs were correlated, so the library's swap agrees with ours.
+For the first two maps, the exact chance of success can be worked out with pencil and paper. In \pbAnalyticInside{} of \pbAnalyticTotal{} settings, the exact answer falls inside the simulator's 95\% band (Fig.~\ref{fig:f3}a), so the simulation is wired correctly. The simulator's built-in joining, given our routes, also delivered \pbCrossOk{} of \pbCrossTotal{} matching pairs.
 
-When link capacity is short, multipath succeeds more often. On the two-branch network with $n=4$ at $q=0.9$, multipath serves \pbTwoBranchMPnFourqNine{} of requests and single path \pbTwoBranchSPnFourqNine. Paired by seed, multipath did better in \pbBetterTwo{} of \pbRunsTwo{} runs and worse in \pbWorseTwo; the rest were ties, mostly where both methods always succeeded or always failed. On the grid, competing requests shrink the margin. At $q=0.5$ the success rates are \pbThreeGridMPnVarqFive{} and \pbThreeGridSPnVarqFive, and multipath did better in \pbBetterThree{} of \pbRunsThree{} runs and worse in \pbWorseThree. A third path ($k=3$) adds nothing measurable (\pbThreeKGridMPnVarqFive{} at $q=0.5$). Multipath also costs more: it uses \pbattThreeGridMPnVarqFive{} attempts per request against \pbattThreeGridSPnVarqFive{} on the grid at $q=0.5$, and pairs on a path that fails part-way are wasted.
+When roads are short of tries, splitting serves more requests. On the two-route map, with 4 pairs needed and $q=0.9$, splitting serves \pbTwoBranchMPnFourqNine{} of requests and one road \pbTwoBranchSPnFourqNine. Run by run, splitting did better in \pbBetterTwo{} of \pbRunsTwo{} runs and worse in \pbWorseTwo. On the grid, where four requests compete, the gap is smaller: \pbThreeGridMPnVarqFive{} against \pbThreeGridSPnVarqFive{} at $q=0.5$, with splitting better in \pbBetterThree{} of \pbRunsThree{} runs and worse in \pbWorseThree. A third route adds nothing. Splitting also has a cost. It uses more tries per request (\pbattThreeGridMPnVarqFive{} against \pbattThreeGridSPnVarqFive), and pairs on a route that fails halfway are wasted.
 
-Packet loss does not favour multipath (Fig.~\ref{fig:f3}c). With $q=1$ and the simulator's drop rate at 0.1, single path succeeds in \pbFourGridSPnVardOne{} of grid requests and multipath in \pbFourGridMPnVardOne. Paired by seed over the three drop rates, multipath did worse in \pbWorseFourGrid{} of \pbRunsFourGrid{} grid runs and better in \pbBetterFourGrid. A likely reason, which we did not test separately: for half of the grid's node pairs the second disjoint path is two links longer, and every extra link adds packets that can be lost. On the two-branch network both routes have three links, so the two methods send the same packets and give identical results (\pbFourBranchMPnTwodOne{} at 0.1). Success falls far faster than the drop rate, probably because each pair needs several packets: the EPR halves, their acknowledgements and the correction bits. In our runs, multipath helped when link capacity was short and did not help when every packet risked loss.
+When messages get lost, splitting does not help (Fig.~\ref{fig:f3}c). With every try working but 10\% of messages lost, one road serves \pbFourGridSPnVardOne{} of grid requests and splitting \pbFourGridMPnVardOne. Across all loss levels, splitting did worse in \pbWorseFourGrid{} of \pbRunsFourGrid{} grid runs and better in \pbBetterFourGrid. A likely reason, which we did not test separately, is that for half of the grid's city pairs the second route is two roads longer, and every extra road is another chance to lose a message. On the two-route map, where both routes are equally long, the two methods give identical results.
 
 \subsection{How Part B differs from Part A}
-When capacity is the limit (E2, E3), the ranking matches Part A, but the numbers cannot be compared, for four reasons. In Part A the planner knows every link's capacity before it routes; in Part B the routes are fixed first, and a request can fail part-way after spending attempts. Part B has no ILP and no priority $\rho$, so requests are served in arrival order. A failed attempt is retried while the link has attempts left, so the budget works as a shared pool rather than a fixed number of seats. Finally, QuNetSim does not model fidelity for these pairs, so only the hop limit carries over.
+When roads are short of capacity, both parts agree that splitting helps, but their numbers cannot be compared. In Part A the planner knows every road's seats before it plans; in Part B the routes are chosen first, and a request can fail halfway. Part B has no best-possible planner and no deadline order. A failed try is retried while tries remain. And the simulator does not track how blurred a pair is, so only the limit on stops carries over.
 
-\section{Extension: Deadline-Aware Headroom}
-The heuristic always keeps headroom: one request may take at most half of a link's pairs ($\delta=2$). The ILP has no such rule. Our variant keeps the headroom except when a request is on its last chance ($\rho=1$), where it uses $\delta=1$. Whether this helps was uncertain in advance. Taking more pairs for one request can block requests placed after it in the same window.
+\section{Extension: A Spare Seat Except on the Last Chance}
+The quick planner always keeps a spare seat: one request may take at most half of a road's seats. Our idea was to drop that rule only for a request on its last chance before its deadline. It was not clear in advance whether this would help, because taking more seats for one request can leave too few for the next.
 
-We fixed the hypothesis and the decision rule in the scope note before any run. On the small setup at $q=0.5$, deadline-aware $\delta$ lowers MP-Heu's blocking ratio by at least 3 percentage points. The hypothesis counts as supported if the paired mean difference is at least \extThreshold{} and the lower bound of its 95\% CI is above zero. We also report $\delta=1$ for every request, which tells us whether the deadline condition is what matters.
+Before any run, we wrote our prediction in the scope note: at $q=0.5$, the change lowers the quick planner's share turned away by at least \extThreshold, and the 95\% band of the improvement stays above zero. We also planned to test dropping the spare seat for every request.
 
-The hypothesis is \extVerdict. At $q=0.5$, the paired difference is \extDiffqFive{} (95\% CI \extCIloqFive{} to \extCIhiqFive) over 30 seeds. Measured as a ratio of means, the variant closes \extGapDeadqFive{} of the gap between MP-Heu and MP-ILP (Fig.~\ref{fig:f4}).
-
-Using $\delta=1$ for every request does better still, with a difference of \extDoneDiffqFive{} and \extGapDoneqFive{} of the gap closed. At every $q$, $\delta=1$ is at least as good as the deadline-aware rule. In this model, then, the gain comes from dropping headroom, and the deadline condition adds nothing. A likely reason, which we did not test separately, is that headroom saves pairs for requests placed later in the same window, while requests are placed in priority order and capacity resets every window, so the saved pairs mostly go unused. The supported hypothesis is therefore a weaker finding than it first appears. We would drop the headroom rule rather than relax it near deadlines, and this should be retested in a model where pairs survive across windows.
-
+The prediction was \extVerdict. The improvement was \extDiffqFive{} (95\% band \extCIloqFive{} to \extCIhiqFive) over 30 runs, closing \extGapDeadqFive{} of the gap to the best-possible planner (Fig.~\ref{fig:f4}). But dropping the spare seat for everyone did even better: it improved by \extDoneDiffqFive, closed \extGapDoneqFive{} of the gap, and was never worse at any $q$. So the deadline was not what mattered; the spare seat itself was the cost. A likely reason, which we did not test separately, is that seats saved for later requests mostly go unused, because the most urgent requests are placed first and every seat vanishes at the end of the round. Our prediction came true, but for a duller reason than we expected. We would drop the spare-seat rule, and test it again in a model where pairs last longer than one round.
 
 \section{Limitations}
-The abstract model is a simplification. Swapping always succeeds, every pair is discarded at the end of its window, memories do not decay within a window, and fidelity enters only as a hop limit. Real repeaters violate all four.
+The study's model is a simplification. Joins always work, pairs are thrown away after each round, they do not fade during a round, and blur matters only through the limit on stops. Real equipment breaks all four.
 
-The QuNetSim results are a qualitative check, not real hardware. QuNetSim models no noise, decoherence or timing for EPR pairs, link failure comes from our own attempt budget (A22), and fidelity is not measured. Part B shows only that the ranking of single path and multipath holds in a packet-level simulator with real Bell-state measurements when capacity is the limit. Under the simulator's packet drop, it reverses.
+The simulator results are a qualitative check, not real hardware. QuNetSim's pairs never fade or blur, road failures come from our own budget of tries (A22), and pair quality is not measured. Part B shows only that splitting still helps in a message-by-message simulation when roads are short of capacity, and that it stops helping when messages are lost.
 
-The results depend on the parameters we chose. The paper does not give the demand $n$, the number of paths $K$ or the exact arrival model. We calibrated $n$ on a single quantity, and another reading of the request model gives blocking levels close to the paper's (Section~\ref{sec:sens}).
+The results depend on the parameters we chose. The paper leaves out how many pairs a request needs, how many roads it may use and how arrival times are drawn. We tuned the first on a single number, and another reading of the paper gives results close to its own (Section~\ref{sec:sens}).
 
-The fidelity model is inferred. Werner-state swapping reproduces both hop limits the paper prints, but the paper never names its model. We ran only the paper's small setup.
+The blur model is our inference: it matches both limits the paper prints, but the paper never names it. We also ran only the paper's small setup.
 
 \section*{AI-Use Statement}
 We used Claude (Anthropic), through Claude Code, as a programming and writing assistant. It surveyed the QuNetSim source and related literature, drafted code, tests and documents to our specifications, ran experiments, and reviewed our work critically. Every assumption, result and figure was checked against tests or hand-worked answers before we used it. \texttt{AI\_LOG.md} lists each request and what we kept, changed or rejected. One rejected example is the first extension idea, which a review showed was true by construction. We take responsibility for all content and can explain every line.
