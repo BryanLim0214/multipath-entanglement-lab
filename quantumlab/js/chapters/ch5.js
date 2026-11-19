@@ -6,7 +6,7 @@
 import { h, caption, predictBox, loadJson } from "../ui.js";
 import { createLadder } from "../help-ladder.js";
 import { validate, servedRequests, linkKey, seatMap } from "../referee.js";
-import { chapterHead, taskBox, outliner } from "./common.js";
+import { chapterHead, taskBox, outliner, createLock } from "./common.js";
 
 const TASK_ID = "ch5-rush";
 const SPARE_DELTA = 2; // A21: a request may use at most floor(seats / delta) of a link
@@ -39,13 +39,14 @@ function steps(nodes) {
 async function mount(ctx) {
   const { narrative, extra, stage, hints } = ctx;
   const data = await loadJson("rushhour.json");
-  const state = { inst: 0, mode: "single", spare: false, splitAllowed: false, active: 0, answer: {}, ghost: null, hintOn: false };
+  const state = { inst: 0, mode: "single", spare: false, splitAllowed: false, active: 0, answer: {}, ghost: null, hintOn: false,
+    holdBack: false, token: 0 }; // holdBack hides the pairs on the links while a route is shown; token marks the latest redraw
 
   const guess = predictBox({
     name: "ch5-guess",
     legend: "if a request may split over several roads, how many of the 3 requests can be served?",
     options: [1, 2, 3].map((n) => ({ value: String(n), label: `${n} of 3` })),
-    onChange: () => { allowButton.disabled = !guess.ready() || state.splitAllowed; },
+    onChange: () => { updateControls(); },
   });
   const allowButton = h("button", { class: "btn btn-primary", type: "button", text: "Allow split", disabled: true });
   const modeBox = h("fieldset", { hidden: true },
@@ -53,11 +54,12 @@ async function mount(ctx) {
     ...[["single", "One road per request"], ["split", "Split over roads that share no link"]].map(([value, label]) =>
       h("label", { class: "choice" },
         h("input", { type: "radio", name: "ch5-mode", value, checked: value === "single", onchange: () => setMode(value) }), label)));
-  const spareBox = h("input", { type: "checkbox", id: "ch5-spare", onchange: () => { state.spare = spareBox.checked; ladder.progress(); refreshAll(); } });
+  const spareBox = h("input", { type: "checkbox", id: "ch5-spare", onchange: () => { state.spare = spareBox.checked; ladder.progress(); refreshAll(true); } });
   const cityRow = h("div", { class: "btn-row", role: "group", "aria-label": "Add a city to the current road" });
   const newRoad = h("button", { class: "btn", type: "button", text: "New road", onclick: () => addRoad() });
   const undo = h("button", { class: "btn", type: "button", text: "Undo last city", onclick: () => undoCity() });
   const clear = h("button", { class: "btn", type: "button", text: "Clear this request", onclick: () => clearRequest() });
+  const lock = createLock(() => updateControls());
   const requestHost = h("div", {});
   const refereeHost = h("div", { "aria-live": "polite" });
   const infoHost = h("p", {});
@@ -68,9 +70,9 @@ async function mount(ctx) {
     /** Task actions that help levels 3 to 5 call. */
     handlers: {
       highlight: (on) => { state.hintOn = on; drawStage(); },
-      show: () => { state.ghost = solution().ilp; refreshAll(); },
-      doIt: () => { state.ghost = null; applySolution(); },
-      similar: () => { nextInstance(); },
+      show: () => { showSolution(); },
+      doIt: () => { applySolution(); },
+      similar: () => { if (!lock.busy) { nextInstance(); } },
     },
   });
 
@@ -134,6 +136,7 @@ async function mount(ctx) {
    * @returns {void}
    */
   function clickCity(city) {
+    if (lock.busy) { return; }
     const req = activeRequest();
     const roads = roadsOf(req.id);
     if (roads.length === 0) {
@@ -148,7 +151,36 @@ async function mount(ctx) {
       road.nodes.push(city);
     }
     ladder.progress();
-    refreshAll();
+    refreshAll(true);
+    routeFeedback(req, state.token);
+  }
+
+  /**
+   * When the viewer finishes a request's roads, show the result on the stage: a bead runs the last road and a ring
+   * marks the end city if the request is served, or a red ring marks the start city if it is blocked.
+   * The reason is the referee text under the picture, which stays on screen.
+   * @param {{id: number, s: number, d: number, n: number}} req The request being drawn.
+   * @param {number} token The redraw this feedback belongs to; a later redraw cancels it.
+   * @returns {Promise<void>} Resolves when the feedback has finished.
+   */
+  async function routeFeedback(req, token) {
+    const roads = roadsOf(req.id);
+    const promised = roads.reduce((sum, road) => sum + road.pairs, 0);
+    if (!lastRoadDone() || promised < req.n) {
+      return;
+    }
+    const options = { delta: state.spare ? SPARE_DELTA : null };
+    const answer = answerList();
+    const clean = servedRequests(inst(), answer, options).includes(req.id)
+      && !validate(inst(), answer, options).some((e) => e.startsWith("Link ")); // a link used beyond its seats blocks it too
+    if (!clean) {
+      await stage.ring(req.s, "fail");
+      return;
+    }
+    await stage.travel(roads[roads.length - 1].nodes, { color: "mp" });
+    if (token === state.token) {
+      await stage.ring(req.d, "mp");
+    }
   }
 
   /**
@@ -156,6 +188,7 @@ async function mount(ctx) {
    * @returns {void}
    */
   function addRoad() {
+    if (lock.busy) { return; }
     const req = activeRequest();
     const roads = roadsOf(req.id);
     const used = roads.reduce((sum, r) => sum + r.pairs, 0);
@@ -178,7 +211,7 @@ async function mount(ctx) {
     if (road.nodes.length <= 1) {
       roads.pop();
     }
-    refreshAll();
+    refreshAll(true);
   }
 
   /**
@@ -187,7 +220,7 @@ async function mount(ctx) {
    */
   function clearRequest() {
     state.answer[activeRequest().id] = [];
-    refreshAll();
+    refreshAll(true);
   }
 
   /**
@@ -208,13 +241,52 @@ async function mount(ctx) {
   }
 
   /**
-   * Put the exported best answer in place of the viewer's answer (Do it for me).
-   * @returns {void}
+   * Requests that the exported best answer does not serve (they are blocked).
+   * @returns {{id: number, s: number, d: number, n: number}[]} The requests left out.
+   */
+  function blockedInBest() {
+    const placed = new Set(solution().ilp.map((a) => a.request));
+    return inst().requests.filter((r) => !placed.has(r.id));
+  }
+
+  /**
+   * Show me: the green best roads grow in, then a bead runs every best road at once
+   * and a red ring marks each blocked request at its start city.
+   * @returns {Promise<boolean>} Resolves when done (false if another sequence was already running).
+   */
+  function showSolution() {
+    return lock.run(async () => {
+      state.ghost = solution().ilp;
+      await refreshAll(true);
+      await Promise.all([
+        ...state.ghost.flatMap((a) => a.roads.map((road) => stage.travel(road.nodes, { color: "ext" }))),
+        ...blockedInBest().map((req) => stage.ring(req.s, "fail")),
+      ]);
+    });
+  }
+
+  /**
+   * Do it for me: put the exported best answer in place of the viewer's answer. The old pairs shrink away,
+   * a bead runs every road at once (a red ring marks each blocked request), then the pairs settle on the links.
+   * @returns {Promise<boolean>} Resolves when done (false if another sequence was already running).
    */
   function applySolution() {
-    state.answer = {};
-    solution().ilp.forEach((a) => { state.answer[a.request] = a.roads.map((r) => ({ nodes: [...r.nodes], pairs: r.pairs })); });
-    refreshAll();
+    return lock.run(async () => {
+      state.ghost = null;
+      state.answer = {};
+      solution().ilp.forEach((a) => { state.answer[a.request] = a.roads.map((r) => ({ nodes: [...r.nodes], pairs: r.pairs })); });
+      state.holdBack = true;
+      try {
+        await refreshAll(true);
+        await Promise.all([
+          ...solution().ilp.flatMap((a) => a.roads.map((road) => stage.travel(road.nodes, { color: "mp" }))),
+          ...blockedInBest().map((req) => stage.ring(req.s, "fail")),
+        ]);
+      } finally {
+        state.holdBack = false;
+      }
+      await drawStage(true);
+    });
   }
 
   /**
@@ -231,15 +303,16 @@ async function mount(ctx) {
 
   /**
    * Redraw the grid with seats left on each link, beads for pairs, and the viewer's roads.
-   * @returns {void}
+   * @param {boolean} [animate] True to let beads come and go and the green roads grow or shrink.
+   * @returns {Promise<void>} Resolves when the change has finished.
    */
-  function drawStage() {
+  function drawStage(animate = false) {
     const req = activeRequest();
     const seats = seatMap(inst());
     const load = new Map();
     const mine = new Set();
     inst().requests.forEach((r) => roadsOf(r.id).forEach((road) => steps(road.nodes).forEach((st) => {
-      if (seats.has(st.key)) {
+      if (seats.has(st.key) && !state.holdBack) {
         load.set(st.key, (load.get(st.key) || 0) + road.pairs);
         if (r.id === req.id) { mine.add(st.key); }
       }
@@ -262,12 +335,13 @@ async function mount(ctx) {
     });
     if (state.ghost) {
       state.ghost.forEach((a) => a.roads.forEach((road) => steps(road.nodes).forEach((st) => {
-        links.push({ from: st.from, to: st.to, seats: road.pairs, color: "ext", lift: 0.6 });
+        links.push({ from: st.from, to: st.to, key: `best|${st.from}|${st.to}`, seats: road.pairs, color: "ext", lift: 0.6 });
       })));
     }
-    stage.show({ nodes, links, view: "top", pad: 1.6 });
+    const done = stage.show({ nodes, links, view: "top", pad: 1.6 }, { animate });
     stage.setAlt(`A grid of 6 cities in 2 rows. Each link shows seats left over seats in total. `
       + `You are drawing request ${req.id}, from city ${req.s} to city ${req.d}, with ${req.n} pairs.`);
+    return done;
   }
 
   /**
@@ -292,7 +366,8 @@ async function mount(ctx) {
         h("button", {
           class: "btn btn-small", type: "button", "aria-pressed": String(index === state.active),
           text: index === state.active ? "Drawing this one" : "Draw this one",
-          onclick: () => { state.active = index; refreshAll(); },
+          disabled: lock.busy,
+          onclick: () => { if (!lock.busy) { state.active = index; refreshAll(); } },
         }),
         ...rows);
     });
@@ -334,20 +409,33 @@ async function mount(ctx) {
   }
 
   /**
-   * Update every part of the page after a change.
+   * Enable or disable the buttons: nothing can be pressed while Show me or Do it for me is animating.
    * @returns {void}
    */
-  function refreshAll() {
-    const req = activeRequest();
-    const roads = roadsOf(req.id);
-    newRoad.disabled = state.mode !== "split" || roads.length === 0 || !lastRoadDone();
-    undo.disabled = roads.length === 0;
-    clear.disabled = roads.length === 0;
-    allowButton.disabled = !guess.ready() || state.splitAllowed;
+  function updateControls() {
+    const roads = roadsOf(activeRequest().id);
+    newRoad.disabled = state.mode !== "split" || roads.length === 0 || !lastRoadDone() || lock.busy;
+    undo.disabled = roads.length === 0 || lock.busy;
+    clear.disabled = roads.length === 0 || lock.busy;
+    allowButton.disabled = !guess.ready() || state.splitAllowed || lock.busy;
+    spareBox.disabled = lock.busy;
+    modeBox.disabled = lock.busy;
+    cityRow.querySelectorAll("button").forEach((b) => { b.disabled = lock.busy; });
+    requestHost.querySelectorAll("button").forEach((b) => { b.disabled = lock.busy; });
+  }
+
+  /**
+   * Update every part of the page after a change.
+   * @param {boolean} [animate] True to animate the picture (beads coming and going, green roads).
+   * @returns {Promise<void>} Resolves when the picture has finished changing.
+   */
+  function refreshAll(animate = false) {
+    state.token += 1;
     modeBox.hidden = !state.splitAllowed;
     renderRequests();
     renderReferee();
-    drawStage();
+    updateControls();
+    return drawStage(animate);
   }
 
   /**

@@ -6,7 +6,7 @@ import { h, caption, predictBox, loadJson, fixed } from "../ui.js";
 import { pathFidelity, maxIntermediate } from "../math.js";
 import { rampColor } from "../three-stage.js";
 import { createLadder } from "../help-ladder.js";
-import { chapterHead, taskBox, outliner } from "./common.js";
+import { chapterHead, taskBox, outliner, createLock } from "./common.js";
 
 const TASK_ID = "ch4-fidelity";
 const MAX_MIDDLE = 15;
@@ -41,6 +41,7 @@ async function mount(ctx) {
     options: [2, 4, 6, 10].map((n) => ({ value: String(n), label: `${n} middle cities` })),
     onChange: () => { refresh(); },
   });
+  const lock = createLock(() => updateButtons());
   const ladder = createLadder({
     taskId: TASK_ID,
     hints,
@@ -49,7 +50,10 @@ async function mount(ctx) {
       highlight: outliner([addButton]),
       show: () => { autoAdd(); },
       doIt: () => { autoAdd(); },
-      similar: () => { state.middle = 0; state.revealed = false; guess.reset(); refresh(); },
+      similar: () => {
+        if (lock.busy) { return; }
+        state.middle = 0; state.revealed = false; guess.reset(); refresh(true);
+      },
     },
   });
 
@@ -67,34 +71,59 @@ async function mount(ctx) {
   }
 
   /**
-   * Draw the chain of cities for the current count of middle cities.
+   * City id at a place along the chain: "A" first, "B" last, and 1, 2, 3 ... for the middle cities (so a new city keeps the others' ids).
+   * @param {number} i Place from 0.
+   * @param {number} n Number of cities on the chain.
+   * @returns {string|number} The id.
+   */
+  function cityId(i, n) {
+    return i === 0 ? "A" : i === n - 1 ? "B" : i;
+  }
+
+  /**
+   * Enable or disable the buttons and the slider: nothing can be pressed while cities are being added.
    * @returns {void}
    */
-  function drawStage() {
+  function updateButtons() {
+    addButton.disabled = !guess.ready() || state.middle >= MAX_MIDDLE || lock.busy;
+    removeButton.disabled = !guess.ready() || state.middle === 0 || lock.busy;
+    slider.disabled = lock.busy;
+  }
+
+  /**
+   * Draw the chain of cities for the current count of middle cities.
+   * @param {boolean} [animate] True to pop a new city in, slide the others, and step the colors along the ramp.
+   * @param {number} [ms] Length of the change, between 120 and 400.
+   * @returns {Promise<void>} Resolves when the change has finished.
+   */
+  function drawStage(animate = false, ms = 360) {
     const n = state.middle + 2;
     const links = [];
     const nodes = Array.from({ length: n }, (_, i) => ({
-      id: i, x: -SPAN_X + (2 * SPAN_X * i) / (n - 1), y: -0.8,
+      id: cityId(i, n), x: -SPAN_X + (2 * SPAN_X * i) / (n - 1), y: -0.8,
       label: i === 0 ? "A" : i === n - 1 ? "B" : String(i), color: i === 0 || i === n - 1 ? "ink" : "muted", onNode: true,
     }));
     for (let i = 0; i + 1 < n; i += 1) {
-      links.push({ from: i, to: i + 1, seats: 1, color: rampColor(F), beads: 1, beadColor: "ink" });
+      links.push({ from: cityId(i, n), to: cityId(i + 1, n), key: `seg${i}`, seats: 1, color: rampColor(F), beads: 1, beadColor: "ink" });
     }
     const end = pathFidelity(F, state.middle + 1);
     if (state.middle > 0) {
-      links.push({ from: 0, to: n - 1, seats: 1.2, color: end < state.f ? "fail" : rampColor(end), arc: 2.4,
+      links.push({ from: "A", to: "B", key: "arc", seats: 1.2, color: end < state.f ? "fail" : rampColor(end), arc: 2.4,
         label: `end to end ${fixed(end, 2)}`, note: true });
     }
-    stage.show({ nodes, links, view: "top" });
+    const done = stage.show({ nodes, links, view: "top", fitKey: "ch4" }, { animate, ms }); // fitKey: adding a city must not reset a turned view
     stage.setAlt(`A chain from city A to city B with ${state.middle} middle cities. `
       + `The end-to-end fidelity is ${fixed(end, 3)} and the threshold is ${fixed(state.f, 2)}.`);
+    return done;
   }
 
   /**
    * Update the meter, the readout, the buttons, and the limit line.
-   * @returns {void}
+   * @param {boolean} [animate] True to animate the picture (a city added or removed, a new threshold).
+   * @param {number} [ms] Length of the picture change.
+   * @returns {Promise<void>} Resolves when the picture has finished changing.
    */
-  function refresh() {
+  function refresh(animate = false, ms = 360) {
     const links = state.middle + 1;
     const end = pathFidelity(F, links);
     const failed = end < state.f;
@@ -116,9 +145,8 @@ async function mount(ctx) {
     limitLine.textContent = `At f = ${fixed(state.f, 2)} a path may have at most ${limit} middle cities. `
       + `Recomputed in this page: ${maxIntermediate(F, state.f)}.`;
     fReadout.textContent = `f = ${fixed(state.f, 2)}`;
-    addButton.disabled = !guess.ready() || state.middle >= MAX_MIDDLE;
-    removeButton.disabled = !guess.ready() || state.middle === 0;
-    drawStage();
+    updateButtons();
+    const drawn = drawStage(animate, ms);
     if (failed && !state.revealed && guess.ready()) {
       state.revealed = true;
       const right = guess.value() === String(limit);
@@ -126,23 +154,29 @@ async function mount(ctx) {
       if (!right) { ladder.wrong(); }
     }
     if (failed) { ladder.solve(); }
+    return drawn;
   }
 
   /**
    * Add middle cities one at a time until the meter fails (Show me and Do it for me).
-   * @returns {Promise<void>} Resolves when done.
+   * Each city pops in and the meter steps along; the steps share about 2.4 s between them.
+   * @returns {Promise<boolean>} Resolves when done (false if another sequence was already running).
    */
-  async function autoAdd() {
-    while (pathFidelity(F, state.middle + 1) >= state.f && state.middle < MAX_MIDDLE) {
-      state.middle += 1;
-      refresh();
-      await stage.tween(200, () => {});
-    }
+  function autoAdd() {
+    return lock.run(async () => {
+      let steps = 0;
+      while (pathFidelity(F, state.middle + steps + 1) >= state.f && state.middle + steps < MAX_MIDDLE) { steps += 1; }
+      const ms = Math.min(360, Math.max(120, Math.floor(2400 / Math.max(steps, 1))));
+      for (let k = 0; k < steps; k += 1) {
+        state.middle += 1;
+        await refresh(true, ms);
+      }
+    });
   }
 
-  addButton.addEventListener("click", () => { state.middle += 1; ladder.progress(); refresh(); });
-  removeButton.addEventListener("click", () => { state.middle -= 1; ladder.progress(); refresh(); });
-  slider.addEventListener("input", () => { state.f = Number(slider.value); ladder.progress(); refresh(); });
+  addButton.addEventListener("click", () => { lock.run(async () => { state.middle += 1; ladder.progress(); await refresh(true); }); });
+  removeButton.addEventListener("click", () => { lock.run(async () => { state.middle -= 1; ladder.progress(); await refresh(true); }); });
+  slider.addEventListener("input", () => { state.f = Number(slider.value); ladder.progress(); refresh(true, 200); });
 
   narrative.append(
     chapterHead("Chapter 4 of 6", "Paint mixing",

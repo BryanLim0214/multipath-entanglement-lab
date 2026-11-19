@@ -5,7 +5,7 @@
 import { h, caption, predictBox, fixed } from "../ui.js";
 import { binomialPmf, seededRandom, throwAttempts } from "../math.js";
 import { createLadder } from "../help-ladder.js";
-import { chapterHead, taskBox, outliner } from "./common.js";
+import { chapterHead, taskBox, outliner, createLock } from "./common.js";
 
 const M = 6; // attempts per road in the small setup of the paper
 const ROUNDS = 30;
@@ -79,7 +79,7 @@ export function histogram(counts, exact) {
  */
 function mount(ctx) {
   const { narrative, extra, stage, hints } = ctx;
-  const state = { q: 0.8, counts: new Array(M + 1).fill(0), rounds: 0, seed: 500, landed: null, done: false };
+  const state = { q: 0.8, counts: new Array(M + 1).fill(0), rounds: 0, seed: 500, landed: null, done: false, token: 0 };
 
   const slider = h("input", { type: "range", id: "q-slider", min: 0.5, max: 0.9, step: 0.1, value: 0.8,
     "aria-describedby": "q-readout" });
@@ -92,8 +92,9 @@ function mount(ctx) {
     name: "ch2-guess",
     legend: "what number of landed planes is most likely on one road?",
     options: Array.from({ length: M + 1 }, (_, k) => ({ value: String(k), label: `${k} of ${M}` })),
-    onChange: () => { nextButton.disabled = !guess.ready(); runButton.disabled = !guess.ready(); },
+    onChange: () => { updateButtons(); },
   });
+  const lock = createLock(() => updateButtons());
   const ladder = createLadder({
     taskId: TASK_ID,
     hints,
@@ -102,7 +103,10 @@ function mount(ctx) {
       highlight: outliner([slider]),
       show: () => { runRounds(); },
       doIt: () => { runRounds(); },
-      similar: () => { resetCounts(); slider.value = String((5 + ((state.seed * 7) % 5)) / 10); onSlide(); },
+      similar: () => {
+        if (lock.busy) { return; }
+        resetCounts(); slider.value = String((5 + ((state.seed * 7) % 5)) / 10); onSlide();
+      },
     },
   });
 
@@ -116,11 +120,22 @@ function mount(ctx) {
   }
 
   /**
-   * Draw the four roads for a given count of landed planes per road.
-   * @param {number[]|null} shown Planes shown so far on each road, or null for an empty round.
+   * Enable or disable the buttons and the slider: nothing can be pressed while a round is animating.
    * @returns {void}
    */
-  function drawRoads(shown) {
+  function updateButtons() {
+    nextButton.disabled = !guess.ready() || lock.busy;
+    runButton.disabled = !guess.ready() || lock.busy;
+    slider.disabled = lock.busy;
+  }
+
+  /**
+   * Draw the four roads for a given count of landed planes per road.
+   * @param {number[]|null} shown Planes shown so far on each road, or null for an empty round.
+   * @param {boolean} [animate] True to grow or shrink the seats from the picture on screen.
+   * @returns {Promise<void>} Resolves when the seats have finished changing.
+   */
+  function drawRoads(shown, animate = false) {
     const links = [];
     ROADS.forEach(([from, to], i) => {
       links.push({ from, to, seats: 0.5, color: "rule" });
@@ -128,10 +143,11 @@ function mount(ctx) {
       links.push({ from, to, seats, color: "mp", beads: seats, beadColor: "ink",
         small: true, label: shown ? `${state.landed ? state.landed[i].filter(Boolean).length : seats} of ${M}` : `0 of ${M}` });
     });
-    stage.show({ nodes: CITIES.map((c) => ({ ...c, label: c.id, color: "ink", onNode: true })), links, view: "top", pad: 1.6 });
+    const done = stage.show({ nodes: CITIES.map((c) => ({ ...c, label: c.id, color: "ink", onNode: true })), links, view: "top", pad: 1.6 }, { animate });
     stage.setAlt(shown
       ? `Four roads between cities A, B, C and D. Each road shows how many of its ${M} planes landed.`
       : `Four roads between cities A, B, C and D. No round has been played yet.`);
+    return done;
   }
 
   /**
@@ -152,13 +168,14 @@ function mount(ctx) {
     state.counts = new Array(M + 1).fill(0);
     state.rounds = 0;
     state.landed = null;
+    state.token += 1; // stops a round that is still animating
     guess.reset();
-    nextButton.disabled = true;
-    runButton.disabled = true;
+    updateButtons();
   }
 
   /**
-   * Play one round: every road throws M planes. Planes appear one by one on the roads.
+   * Play one round: the roads start empty, every road throws M planes, the planes that land become seats
+   * (the seats grow and the beads appear one after another) and the planes that miss fall into the river.
    * @returns {Promise<void>} Resolves when the animation ends.
    */
   async function playRound() {
@@ -168,8 +185,14 @@ function mount(ctx) {
     const finals = state.landed.map((a) => a.filter(Boolean).length);
     finals.forEach((k) => { state.counts[k] += 1; });
     state.rounds += 1;
-    await stage.tween(400, (t) => drawRoads(finals.map((f) => Math.round(f * t))));
-    drawRoads(finals);
+    const token = ++state.token;
+    await drawRoads(null, true); // new round: last round's seats are gone
+    await Promise.all(ROADS.flatMap(([from, to], i) => state.landed[i].map((landed, k) => stage.travel([from, to], {
+      color: "ink", delay: k * 60, stopAt: landed ? 1 : 0.55, drop: !landed, // a missed plane falls short of the far bank
+    }))));
+    if (token !== state.token) { return; }
+    await drawRoads(finals, true);
+    if (token !== state.token) { return; }
     drawChart();
     reveal(`This round the roads got ${finals.join(", ")} seats.`);
   }
@@ -179,6 +202,7 @@ function mount(ctx) {
    * @returns {void}
    */
   function runRounds() {
+    if (lock.busy) { return; }
     const random = seededRandom(state.seed);
     state.seed += 1;
     for (let r = 0; r < ROUNDS; r += 1) {
@@ -205,8 +229,7 @@ function mount(ctx) {
     guess.reveal(String(mode), `${lead} The most likely number is ${mode} (exact chance ${fixed(p, 2)}).`);
     if (right) { ladder.progress(); } else { ladder.wrong(); }
     guess.clearChoice();
-    nextButton.disabled = true;
-    runButton.disabled = true;
+    updateButtons();
   }
 
   /**
@@ -222,7 +245,7 @@ function mount(ctx) {
     ladder.progress();
   }
 
-  nextButton.addEventListener("click", () => { playRound(); });
+  nextButton.addEventListener("click", () => { lock.run(playRound); });
   runButton.addEventListener("click", () => { runRounds(); });
   slider.addEventListener("input", onSlide);
 

@@ -1,5 +1,5 @@
 /**
- * Pieces every chapter uses: the heading block, a task box, and the outline used by "stronger hint".
+ * Pieces every chapter uses: the heading block, a task box, the outline used by "stronger hint", and a lock for animated sequences.
  */
 import { h } from "../ui.js";
 
@@ -54,4 +54,36 @@ export function svgEl(tag, attrs, text) {
     el.textContent = text;
   }
   return el;
+}
+
+/**
+ * A lock that lets only one animated sequence run at a time. While it runs, the room disables its buttons
+ * (its onChange function reads lock.busy), and a second press is ignored instead of starting an overlap.
+ * @param {function(): void} onChange Called when the lock closes and when it opens, so the room can update its buttons.
+ * @returns {{busy: boolean, run: function(function(): Promise<void>): Promise<boolean>}} The lock.
+ */
+export function createLock(onChange) {
+  const lock = {
+    busy: false,
+    /**
+     * Run a sequence unless one is already running.
+     * @param {function(): Promise<void>} sequence The animated steps.
+     * @returns {Promise<boolean>} True if it ran, false if it was ignored because another was running.
+     */
+    async run(sequence) {
+      if (lock.busy) {
+        return false;
+      }
+      lock.busy = true;
+      onChange();
+      try {
+        await sequence();
+      } finally {
+        lock.busy = false;
+        onChange();
+      }
+      return true;
+    },
+  };
+  return lock;
 }

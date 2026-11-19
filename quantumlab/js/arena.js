@@ -3,7 +3,7 @@
  * The viewer scrubs through the windows, switches off a rule on the multipath side, and clicks a request
  * to read what happened to it. All numbers come from data/arena.json, written by tools/export_data.py.
  */
-import { h, caption, predictBox, loadJson, fixed, announce } from "./ui.js";
+import { h, caption, predictBox, loadJson, fixed, announce, motionReduced } from "./ui.js";
 import { createLadder } from "./help-ladder.js";
 import { chapterHead, taskBox, outliner } from "./chapters/common.js";
 import {
@@ -15,7 +15,8 @@ import { sideStory, requestCaption } from "./arena-story.js";
 const FIND_TASK_ID = "arena-find";
 const ABLATE_TASK_ID = "arena-ablate";
 const SPACING = 2.4; // scene units between neighbouring cities
-const PLAY_STEP_MS = 1400;
+const PLAY_GAP_MS = 600; // rest between two windows while playing, after the animation of the first has finished
+const PLAY_STEP_REDUCED_MS = 1400; // with reduced motion there is no animation, so each window stays this long
 const STATUS_TEXT = {
   "served-now": "served now", "served-earlier": "served earlier", "turned-away": "turned away, may retry",
   "blocked-now": "blocked (last chance)", "blocked-earlier": "blocked earlier", "not-open": "not open yet",
@@ -53,7 +54,9 @@ async function mount(ctx) {
   const lab = document.getElementById("view-lab");
   const narrowQuery = window.matchMedia("(max-width: 760px)");
   const state = { q: 0.5, seed: 0, pair: "Heu", rules: { split: true, spare: true, hop: true }, w: 0,
-    selected: null, onlyDiff: false, timer: null, hintOn: false };
+    selected: null, onlyDiff: false, hintOn: false,
+    playing: false, playId: 0, timer: null, wake: null, animating: false };
+  let seqToken = 0; // each window animation takes a number; a newer one, or any redraw, makes the older one stop
   const fateCache = new Map();
   let ladderA = null;
   let ladderB = null;
@@ -91,9 +94,9 @@ async function mount(ctx) {
   // ---- scrubber and counters (under the picture) --------------------------------------------
   const windowLabel = h("p", { class: "readout", id: "arena-window" });
   const slider = h("input", { type: "range", id: "arena-slider", min: 1, max: lastWindow + 1, step: 1, value: 1,
-    "aria-label": "Window", oninput: () => { setWindow(Number(slider.value) - 1); } });
-  const backButton = h("button", { class: "btn btn-small", type: "button", text: "Back one window", onclick: () => setWindow(state.w - 1) });
-  const stepButton = h("button", { class: "btn btn-small", type: "button", text: "Next window", onclick: () => setWindow(state.w + 1) });
+    "aria-label": "Window", oninput: () => { stopPlay(); setWindow(Number(slider.value) - 1); } });
+  const backButton = h("button", { class: "btn btn-small", type: "button", text: "Back one window", onclick: () => { stopPlay(); setWindow(state.w - 1); } });
+  const stepButton = h("button", { class: "btn btn-small", type: "button", text: "Next window", onclick: () => { stopPlay(); setWindow(state.w + 1, true); } });
   const playButton = h("button", { class: "btn btn-small btn-primary", type: "button", text: "Play", "aria-pressed": "false", onclick: () => togglePlay() });
   const counterHead = [h("th", { text: "" }), h("th", { class: "num" }), h("th", { class: "num" })];
   const counterCells = ["served", "blocked", "waiting", "ratio"].map(() => [h("td", { class: "num" }), h("td", { class: "num" })]);
@@ -156,9 +159,11 @@ async function mount(ctx) {
   // ---- drawing -----------------------------------------------------------------------------
   /**
    * Draw both networks for the current window.
-   * @returns {void}
+   * @param {boolean} [animate] True to change smoothly from the picture on screen (seats grow or shrink, pairs come and go).
+   * @param {boolean} [refill] True to draw the window with every seat free and no pair placed, as at the start of a round.
+   * @returns {Promise<void>} Resolves when the change has finished.
    */
-  function drawStage() {
+  function drawStage(animate = false, refill = false) {
     const stacked = narrowQuery.matches;
     const reqs = requestMap(run());
     const picked = state.selected === null ? null : reqs.get(state.selected);
@@ -178,23 +183,25 @@ async function mount(ctx) {
       links.forEach(([a, b]) => {
         const key = `${a}-${b}`;
         stageLinks.push({ from: `${prefix}${a}`, to: `${prefix}${b}`, seats: 0.5, color: "rule" });
-        stageLinks.push({ from: `${prefix}${a}`, to: `${prefix}${b}`, seats: seats.left.get(key), color: "muted",
-          beads: seats.used.get(key), beadColor: side.color, label: `${seats.left.get(key)}/${seats.cap.get(key)}`,
+        const free = refill ? seats.cap.get(key) : seats.left.get(key);
+        stageLinks.push({ from: `${prefix}${a}`, to: `${prefix}${b}`, seats: free, color: "muted",
+          beads: refill ? 0 : seats.used.get(key), beadColor: side.color, label: `${free}/${seats.cap.get(key)}`,
           small: true, labelShift: b - a === config.cols ? { x: 0.6, y: 0 } : { x: 0, y: 0.5 } }); // one side only: right of vertical links, above horizontal ones
       });
-      if (status === "served-now") {
+      if (status === "served-now" && !refill) {
         side.fates.get(picked.id).alloc.paths.forEach((road) => road.nodes.slice(0, -1).forEach((u, i) => {
-          stageLinks.push({ from: `${prefix}${u}`, to: `${prefix}${road.nodes[i + 1]}`, seats: road.pairs, color: "ink", lift: 0.7 });
+          stageLinks.push({ from: `${prefix}${u}`, to: `${prefix}${road.nodes[i + 1]}`, key: `pick|${prefix}${u}|${road.nodes[i + 1]}`, seats: road.pairs, color: "ink", lift: 0.7 });
         }));
       }
       const mid = cityPosition(2, index === 1, stacked);
       captions.push({ x: mid.x, y: mid.y + 1.5, text: `${side.name} (${side.traceName})` });
     });
-    stage.show({ nodes, links: stageLinks, captions, pad: 1.9, view: "top" });
+    const done = stage.show({ nodes, links: stageLinks, captions, pad: 1.9, view: "top" }, { animate });
     const [left, right] = sides();
     stage.setAlt(`Two grids of 9 cities. Left, single-path: ${left.counts.served} served and ${left.counts.blocked} blocked so far. `
       + `Right, multipath: ${right.counts.served} served and ${right.counts.blocked} blocked so far. Window ${state.w + 1} of ${lastWindow + 1}. `
       + "Thicker tubes have more seats left, and beads are pairs placed in this window.");
+    return done;
   }
 
   /**
@@ -205,8 +212,10 @@ async function mount(ctx) {
     const first = state.w * config.tc + 1;
     windowLabel.textContent = `Window ${state.w + 1} of ${lastWindow + 1} (slots ${first} to ${Math.min((state.w + 1) * config.tc, config.T)})`;
     slider.value = String(state.w + 1);
-    backButton.disabled = state.w === 0;
-    stepButton.disabled = state.w === lastWindow;
+    backButton.disabled = state.w === 0 || state.animating;
+    stepButton.disabled = state.w === lastWindow || state.animating;
+    slider.disabled = state.animating;
+    playButton.disabled = state.animating && !state.playing; // while playing, the button must stay free to pause
     const [left, right] = sides();
     counterHead[1].textContent = left.traceName;
     counterHead[2].textContent = right.traceName;
@@ -297,57 +306,160 @@ async function mount(ctx) {
   }
 
   /**
-   * Redraw everything that depends on the window, the run or the rules.
+   * Update the text parts that depend on the window: controls, request table, story and rule changes.
    * @returns {void}
    */
-  function refreshAll() {
+  function refreshText() {
     renderControls();
     renderTable();
     renderStory();
     renderChanges();
+  }
+
+  /**
+   * Stop a window animation that is running, so a redraw can take over cleanly.
+   * @returns {void}
+   */
+  function cancelSequence() {
+    seqToken += 1;
+    state.animating = false;
+  }
+
+  /**
+   * Redraw everything that depends on the window, the run or the rules, at once and without animation.
+   * @returns {void}
+   */
+  function refreshAll() {
+    cancelSequence();
+    refreshText();
     drawStage();
   }
 
   // ---- actions -----------------------------------------------------------------------------
   /**
+   * Total pairs placed on all links of both networks in a window (zero means nothing is used up).
+   * @param {number} w Window index from 0.
+   * @returns {number} Pairs placed.
+   */
+  function pairsPlaced(w) {
+    return sides().reduce((sum, side) => sum + side.trace.windows[w].allocations
+      .reduce((n, alloc) => n + alloc.paths.reduce((m, road) => m + road.pairs, 0), 0), 0);
+  }
+
+  /**
+   * Animate one step forward: the seats refill for the new round, a bead runs each road of every request served
+   * in this window (both networks at once) while a red ring marks each request blocked for good, and the seats
+   * then shrink to what is left. Stops quietly if a redraw or a newer step takes over.
+   * @returns {Promise<void>} Resolves when the picture shows the window, or when the sequence was stopped.
+   */
+  async function runWindowSequence() {
+    cancelSequence();
+    const token = seqToken;
+    state.animating = true;
+    renderControls();
+    if (pairsPlaced(state.w - 1) > 0) {
+      await drawStage(true, true); // new round: the seats are free again
+    }
+    if (token !== seqToken) { return; }
+    const moves = [];
+    const reqs = requestMap(run());
+    sides().forEach((side, index) => {
+      const prefix = index === 0 ? "L" : "R";
+      side.trace.windows[state.w].allocations.forEach((alloc) => alloc.paths.forEach((road) => {
+        moves.push(stage.travel(road.nodes.map((city) => `${prefix}${city}`), { color: side.color })); // a served pair crosses its road
+      }));
+      for (const [id, req] of reqs) {
+        if (statusAt(side.fates.get(id), state.w) === "blocked-now") {
+          moves.push(stage.ring(`${prefix}${req.s}`, "fail")); // blocked for good: red ring at its start city
+        }
+      }
+    });
+    await Promise.all(moves);
+    if (token !== seqToken) { return; }
+    await drawStage(true); // the used seats shrink
+    if (token === seqToken) {
+      state.animating = false;
+      renderControls();
+    }
+  }
+
+  /**
    * Move to a window.
    * @param {number} w Window index from 0, clamped to the valid range.
-   * @returns {void}
+   * @param {boolean} [withSequence] True for a single step forward, which plays the full animation; any other jump only changes the seats smoothly.
+   * @returns {Promise<void>} Resolves when the picture has finished changing.
    */
-  function setWindow(w) {
+  function setWindow(w, withSequence = false) {
+    const from = state.w;
     state.w = Math.min(lastWindow, Math.max(0, w));
+    cancelSequence();
     if (ladderA) { ladderA.progress(); }
-    refreshAll();
+    refreshText();
     const [left, right] = sides();
     announce(`Window ${state.w + 1}. Single-path: ${left.counts.served} served, ${left.counts.blocked} blocked. Multipath: ${right.counts.served} served, ${right.counts.blocked} blocked.`);
-    if (state.w === lastWindow) { stopPlay(); }
+    return withSequence && state.w === from + 1 ? runWindowSequence() : drawStage(true);
+  }
+
+  /**
+   * Wait between two windows while playing. Pausing wakes the wait at once.
+   * @param {number} ms Wait in milliseconds.
+   * @returns {Promise<void>} Resolves after the wait or when play is stopped.
+   */
+  function rest(ms) {
+    return new Promise((resolve) => {
+      state.wake = resolve;
+      state.timer = window.setTimeout(() => { state.wake = null; resolve(); }, ms);
+    });
+  }
+
+  /**
+   * Play: step forward one animated window at a time. The next step starts only after the last one has finished
+   * and rested, so frames never pile up.
+   * @returns {Promise<void>} Resolves when play ends.
+   */
+  async function playLoop() {
+    const id = state.playId;
+    while (state.playing && id === state.playId && state.w < lastWindow) {
+      await setWindow(state.w + 1, true);
+      if (!state.playing || id !== state.playId) { return; }
+      await rest(motionReduced() ? PLAY_STEP_REDUCED_MS : PLAY_GAP_MS);
+    }
+    if (id === state.playId) { stopPlay(); }
   }
 
   /**
    * Start or stop the automatic stepping.
-   * @returns {void}
+   * @returns {Promise<void>} Resolves when play ends (or at once when it was stopped).
    */
-  function togglePlay() {
-    if (state.timer) {
+  async function togglePlay() {
+    if (state.playing) {
       stopPlay();
       return;
     }
-    if (state.w === lastWindow) { state.w = -1; }
+    if (state.animating) { return; }
+    state.playing = true;
+    state.playId += 1;
     playButton.textContent = "Pause";
     playButton.setAttribute("aria-pressed", "true");
-    setWindow(state.w + 1);
-    state.timer = window.setInterval(() => setWindow(state.w + 1), PLAY_STEP_MS);
+    if (state.w === lastWindow) { await setWindow(0); }
+    await playLoop();
   }
 
   /**
-   * Stop the automatic stepping.
+   * Stop the automatic stepping (a window animation that is running finishes on its own).
    * @returns {void}
    */
   function stopPlay() {
-    window.clearInterval(state.timer);
-    state.timer = null;
+    state.playing = false;
+    state.playId += 1;
+    window.clearTimeout(state.timer);
+    if (state.wake) {
+      state.wake();
+      state.wake = null;
+    }
     playButton.textContent = "Play";
     playButton.setAttribute("aria-pressed", "false");
+    playButton.disabled = state.animating && !state.playing;
   }
 
   /**
@@ -565,6 +677,7 @@ async function mount(ctx) {
   return () => {
     stopPlay();
     narrowQuery.removeEventListener("change", onResize);
+    cancelSequence();
     lab.classList.remove("is-arena");
     if (ladderA) { ladderA.dispose(); }
     if (ladderB) { ladderB.dispose(); }

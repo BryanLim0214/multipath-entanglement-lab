@@ -5,7 +5,7 @@
 import { h, caption, predictBox } from "../ui.js";
 import { seededRandom } from "../math.js";
 import { createLadder } from "../help-ladder.js";
-import { chapterHead, taskBox, outliner } from "./common.js";
+import { chapterHead, taskBox, outliner, createLock } from "./common.js";
 
 const FLIPS = 20;
 const TASK_ID = "ch1-coins";
@@ -24,6 +24,15 @@ export function flipPair(random, dial1, dial2) {
 }
 
 /**
+ * Color token for a result bit.
+ * @param {number|null} bit 0, 1, or null before any flip.
+ * @returns {string} Color token name.
+ */
+function bitColor(bit) {
+  return bit === null ? "muted" : bit === 1 ? "mp" : "ink";
+}
+
+/**
  * Build the chapter.
  * @param {{narrative: HTMLElement, extra: HTMLElement, stage: object, hints: object}} ctx Room context.
  * @returns {function(): void} Cleanup function.
@@ -39,8 +48,9 @@ function mount(ctx) {
     name: "ch1-guess",
     legend: "out of 20 flips, how many times will the two coins agree?",
     options: [{ value: "all", label: "All 20" }, { value: "half", label: "About 10" }, { value: "none", label: "None" }],
-    onChange: () => { flipButton.disabled = !guess.ready(); },
+    onChange: () => { updateButtons(); },
   });
+  const lock = createLock(() => updateButtons());
   const flipsHost = h("div", { class: "table-scroll", role: "region", "aria-label": "Results of the latest 20 flips", tabIndex: 0 });
   const summaryHost = h("div", {});
   const ladder = createLadder({
@@ -51,33 +61,42 @@ function mount(ctx) {
       highlight: outliner([dial1, dial2]),
       show: () => { runBoth(); },
       doIt: () => { runBoth(); },
-      similar: () => { state.runs = []; state.sameDone = false; state.mixedDone = false; state.seed += 50; renderTables(); drawStage(null); },
+      similar: () => {
+        if (lock.busy) { return; }
+        state.runs = []; state.sameDone = false; state.mixedDone = false; state.seed += 50; renderTables(); drawStage(null);
+      },
     },
   });
 
   /**
-   * Draw the two cities, colored by the last flip's results.
-   * @param {number[]|null} last Last flip results, or null before any flip.
+   * Enable or disable the flip button and the dials: nothing can be pressed while an animation runs.
    * @returns {void}
    */
-  function drawStage(last) {
-    /**
-     * Token for a result bit.
-     * @param {number|null} bit 0, 1, or null before any flip.
-     * @returns {string} Color token name.
-     */
-    const color = (bit) => (bit === null ? "muted" : bit === 1 ? "mp" : "ink");
+  function updateButtons() {
+    flipButton.disabled = !guess.ready() || lock.busy;
+    dial1.disabled = lock.busy;
+    dial2.disabled = lock.busy;
+  }
+
+  /**
+   * Draw the two cities, colored by the last flip's results.
+   * @param {number[]|null} last Last flip results, or null before any flip.
+   * @param {boolean} [animate] True to change from the old colors to the new ones smoothly.
+   * @returns {Promise<void>} Resolves when the colors have changed.
+   */
+  function drawStage(last, animate = false) {
     const bits = last || [null, null];
-    stage.show({
+    const shown = stage.show({
       nodes: [
-        { id: 1, x: -3, y: 0, color: color(bits[0]), label: `City 1, dial ${dial1.value}${last ? `: ${bits[0]}` : ""}` },
-        { id: 2, x: 3, y: 0, color: color(bits[1]), label: `City 2, dial ${dial2.value}${last ? `: ${bits[1]}` : ""}` },
+        { id: 1, x: -3, y: 0, color: bitColor(bits[0]), label: `City 1, dial ${dial1.value}${last ? `: ${bits[0]}` : ""}` },
+        { id: 2, x: 3, y: 0, color: bitColor(bits[1]), label: `City 2, dial ${dial2.value}${last ? `: ${bits[1]}` : ""}` },
       ],
       links: [{ from: 1, to: 2, seats: 1.5, color: "rule", beads: 1, beadColor: "mp" }],
-    });
+    }, { animate });
     stage.setAlt(last
       ? `Two cities joined by one entangled pair. City 1 shows ${bits[0]} and City 2 shows ${bits[1]} on the last flip.`
       : "Two cities joined by one entangled pair. Neither city has a result yet.");
+    return shown;
   }
 
   /**
@@ -112,7 +131,7 @@ function mount(ctx) {
 
   /**
    * Flip the pair 20 times with the current dials and record the run.
-   * @returns {Promise<void>} Resolves after the stage pulse.
+   * @returns {Promise<void>} Resolves after both answers have shown.
    */
   async function runFlips() {
     const random = seededRandom(state.seed);
@@ -123,7 +142,8 @@ function mount(ctx) {
     const agree = flips.filter((f) => f[0] === f[1]).length;
     state.runs.push({ d1, d2, flips, agree });
     renderTables();
-    drawStage(flips[FLIPS - 1]);
+    const last = flips[FLIPS - 1];
+    const colored = drawStage(last, true); // each city changes to the color of its answer
     if (guess.ready()) {
       const actual = agree === FLIPS ? "all" : agree === 0 ? "none" : "half";
       const rule = d1 === d2
@@ -133,27 +153,30 @@ function mount(ctx) {
       guess.reveal(actual, `The coins agreed ${agree} of ${FLIPS} times. ${rule}`);
       if (right) { ladder.progress(); } else { ladder.wrong(); }
       guess.clearChoice();
-      flipButton.disabled = true;
     }
     if (d1 === d2) { state.sameDone = true; } else { state.mixedDone = true; }
     if (state.sameDone && state.mixedDone) { ladder.solve(); }
-    await Promise.all([stage.pulse(1), stage.pulse(2)]);
+    await colored;
+    // a ring in the answer color at each city says "this city just gave its answer"
+    await Promise.all([stage.ring(1, bitColor(last[0])), stage.ring(2, bitColor(last[1])), stage.pulse(1), stage.pulse(2)]);
   }
 
   /**
-   * Used by Show me and Do it for me: run one same-dial and one mixed-dial run.
-   * @returns {void}
+   * Used by Show me and Do it for me: run one same-dial and one mixed-dial run, one after the other.
+   * @returns {Promise<boolean>} Resolves when both runs have finished (false if another sequence was running).
    */
   function runBoth() {
-    [["Z", "Z"], ["Z", "X"]].forEach(([a, b]) => {
-      dial1.value = a;
-      dial2.value = b;
-      runFlips();
+    return lock.run(async () => {
+      for (const [a, b] of [["Z", "Z"], ["Z", "X"]]) {
+        dial1.value = a;
+        dial2.value = b;
+        await runFlips();
+      }
     });
   }
 
-  flipButton.addEventListener("click", () => { runFlips(); });
-  [dial1, dial2].forEach((d) => d.addEventListener("change", () => { drawStage(null); ladder.progress(); }));
+  flipButton.addEventListener("click", () => { lock.run(runFlips); });
+  [dial1, dial2].forEach((d) => d.addEventListener("change", () => { drawStage(null, true); ladder.progress(); }));
 
   narrative.append(
     chapterHead("Chapter 1 of 6", "Two questions",

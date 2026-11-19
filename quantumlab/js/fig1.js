@@ -4,7 +4,7 @@
  */
 import { h, caption, predictBox, loadJson } from "./ui.js";
 import { createLadder } from "./help-ladder.js";
-import { chapterHead, taskBox } from "./chapters/common.js";
+import { chapterHead, taskBox, createLock } from "./chapters/common.js";
 
 const TASK_ID = "fig1-walk";
 const POSITIONS = {
@@ -45,6 +45,7 @@ async function mount(ctx) {
     options: [{ value: "1", label: "City 1" }, { value: "8", label: "City 8" }],
     onChange: () => { refresh(); },
   });
+  const lock = createLock(() => updateButtons());
   const ladder = createLadder({
     taskId: TASK_ID,
     hints,
@@ -52,8 +53,8 @@ async function mount(ctx) {
     handlers: {
       highlight: (on) => { state.hintOn = on; refresh(); },
       show: () => { autoStep(); },
-      doIt: () => { state.frame = total; refresh(); },
-      similar: () => { state.frame = 0; guess.reset(); refresh(); },
+      doIt: () => { if (!lock.busy) { state.frame = total; refresh(true); } },
+      similar: () => { if (!lock.busy) { state.frame = 0; guess.reset(); refresh(true); } },
     },
   });
 
@@ -97,9 +98,11 @@ async function mount(ctx) {
 
   /**
    * Draw the network for the current frame.
-   * @returns {void}
+   * @param {boolean} [animate] True to grow the new path tubes and shrink the seats that were used.
+   * @param {number} [ms] Length of the change.
+   * @returns {Promise<void>} Resolves when the change has finished.
    */
-  function drawStage() {
+  function drawStage(animate = false, ms = 360) {
     const { node, labels, tubes, seatsNow } = frameDrawing();
     const residual = state.frame > 0 && data.steps[state.frame - 1].kind === "residual";
     const was = residual ? new Map(data.steps[state.frame - 1].links.map((l) => [`${l.a}-${l.b}`, l.before])) : new Map();
@@ -115,11 +118,12 @@ async function mount(ctx) {
       const text = was.has(key) ? `${left} (was ${was.get(key)})` : String(left);
       return { from: l.a, to: l.b, seats: left, color: "muted", label: text, small: true };
     });
-    tubes.forEach((t) => links.push({ from: t.a, to: t.b, seats: t.seats, color: t.color, lift: t.lift }));
+    tubes.forEach((t) => links.push({ from: t.a, to: t.b, key: `over|${t.a}|${t.b}|${t.lift}`, seats: t.seats, color: t.color, lift: t.lift }));
     const captions = Object.entries(labels).map(([key, text]) => ({ x: POSITIONS[key][0], y: POSITIONS[key][1] + 1.0, text: `alpha ${text.split(": ")[1]}` }));
-    stage.show({ nodes, links, captions, view: "top", pad: 1.6 });
+    const done = stage.show({ nodes, links, captions, view: "top", pad: 1.6 }, { animate, ms });
     stage.setAlt(`The paper's 9 city network with link seats. Request from city ${req.s} to city ${req.d}. `
       + `Step ${state.frame} of ${total}.`);
+    return done;
   }
 
   /**
@@ -176,30 +180,69 @@ async function mount(ctx) {
   }
 
   /**
-   * Redraw everything for the current frame.
+   * Enable or disable the buttons: nothing can be pressed while a step is animating.
    * @returns {void}
    */
-  function refresh() {
+  function updateButtons() {
+    stepButton.disabled = state.frame >= total || (state.frame === 0 && !guess.ready()) || lock.busy;
+    backButton.disabled = state.frame === 0 || lock.busy;
+    resetButton.disabled = lock.busy;
+  }
+
+  /**
+   * Redraw everything for the current frame.
+   * @param {boolean} [animate] True to animate the picture from the one on screen.
+   * @param {number} [ms] Length of the picture change.
+   * @returns {Promise<void>} Resolves when the picture has finished changing.
+   */
+  function refresh(animate = false, ms = 360) {
     counter.textContent = `Step ${state.frame} of ${total}`;
-    stepButton.disabled = state.frame >= total || (state.frame === 0 && !guess.ready());
-    backButton.disabled = state.frame === 0;
+    updateButtons();
     frameHost.replaceChildren(...frameText());
-    drawStage();
+    const drawn = drawStage(animate, ms);
     if (state.frame === total) {
       ladder.solve();
+    }
+    return drawn;
+  }
+
+  /**
+   * Swell the alpha candidates of a walking step, so the eye sees which cities were scored.
+   * @returns {Promise<void>} Resolves when the swelling is done.
+   */
+  function highlightCandidates() {
+    const now = state.frame > 0 ? data.steps[state.frame - 1] : null;
+    return now && now.kind === "choose" ? Promise.all(now.candidates.map((c) => stage.pulse(c.node))).then(() => {}) : Promise.resolve();
+  }
+
+  /**
+   * Animate what the current frame means: the walker runs the chosen hop;
+   * a found path is run end to end, and each part of an allocation runs its own path.
+   * @returns {Promise<void>} Resolves when the walker has arrived.
+   */
+  async function playFrame() {
+    const now = state.frame > 0 ? data.steps[state.frame - 1] : null;
+    if (!now) { return; }
+    if (now.kind === "choose") {
+      await stage.travel([now.at, now.chosen], { color: "mp" });
+    } else if (now.kind === "found") {
+      await stage.travel(now.path, { color: "mp" });
+    } else if (now.kind === "allocation") {
+      await Promise.all(now.split.map(({ path }) => stage.travel(path, { color: "mp" })));
     }
   }
 
   /**
-   * Move forward one frame, and judge the first prediction.
-   * @returns {void}
+   * Move forward one frame, judge the first prediction, and animate the step.
+   * @param {number} [ms] Length of the picture change (Show me uses a shorter one).
+   * @returns {Promise<void>} Resolves when the walker has arrived.
    */
-  function step() {
+  async function step(ms = 360) {
     if (state.frame >= total) { return; }
     const first = state.frame === 0;
     state.frame += 1;
     ladder.progress();
-    refresh();
+    const drawn = Promise.all([refresh(true, ms), highlightCandidates()]);
     if (first && guess.ready()) {
       const chosen = String(data.steps[0].chosen);
       const right = guess.value() === chosen;
@@ -207,23 +250,25 @@ async function mount(ctx) {
       if (!right) { ladder.wrong(); }
       guess.clearChoice();
     }
+    await drawn;
+    await playFrame();
   }
 
   /**
-   * Show me: advance one step at a time until the end.
-   * @returns {Promise<void>} Resolves at the last step.
+   * Show me: advance one step at a time until the end, animating each step.
+   * @returns {Promise<boolean>} Resolves at the last step (false if another sequence was already running).
    */
-  async function autoStep() {
-    while (state.frame < total) {
-      state.frame += 1;
-      refresh();
-      await stage.tween(400, () => {});
-    }
+  function autoStep() {
+    return lock.run(async () => {
+      while (state.frame < total) {
+        await step(200);
+      }
+    });
   }
 
-  stepButton.addEventListener("click", step);
-  backButton.addEventListener("click", () => { state.frame -= 1; refresh(); });
-  resetButton.addEventListener("click", () => { state.frame = 0; guess.reset(); refresh(); });
+  stepButton.addEventListener("click", () => { lock.run(step); });
+  backButton.addEventListener("click", () => { state.frame -= 1; refresh(true); });
+  resetButton.addEventListener("click", () => { state.frame = 0; guess.reset(); refresh(true); });
 
   narrative.append(
     chapterHead("Fig. 1 debugger", "Step through the paper's worked example",
